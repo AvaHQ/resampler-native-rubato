@@ -240,3 +240,49 @@ fn write_frames_to_disk(frames: Vec<u8>, output: String) {
     error!("Cannot clear tmp : {:?}", err);
   }
 }
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_re_sample_audio_buffer_single_channel() {
+    // Créez un exemple de données d'entrée pour un seul canal
+    let buffer = vec![vec![0.0, 1.0, 2.0, 3.0, 4.0]];
+    let input_sample_rate = 44100;
+    let output_sample_rate = 48000;
+    let input_channels = 1;
+    let output_channels = 1;
+
+    let result = re_sample_audio_buffer(
+      buffer,
+      input_sample_rate,
+      output_sample_rate,
+      input_channels,
+      output_channels,
+    );
+
+    // Écrivez des assertions pour vérifier si le résultat est correct
+    assert_eq!(result.len(), 40);
+    // Vérifiez d'autres aspects du résultat, si nécessaire
+  }
+  #[test]
+  fn test_re_sample_audio_buffer_stereo() {
+    // Créez un exemple de données d'entrée pour deux canaux (stéréo)
+    let buffer = vec![vec![0.0, 1.0, 2.0, 3.0, 4.0], vec![5.0, 6.0, 7.0, 8.0, 9.0]];
+    let input_sample_rate = 44100;
+    let output_sample_rate = 48000;
+    let input_channels = 2;
+    let output_channels = 2;
+
+    let result = re_sample_audio_buffer(
+      buffer,
+      input_sample_rate,
+      output_sample_rate,
+      input_channels,
+      output_channels,
+    );
+
+    assert_eq!(result.len(), 80);
+  }
+}
