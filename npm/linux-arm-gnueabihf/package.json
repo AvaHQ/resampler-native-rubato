@@ -1,0 +1,18 @@
+{
+  "name": "@avahq/resampler-native-rubato-linux-arm-gnueabihf",
+  "version": "0.0.0",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm"
+  ],
+  "main": "resampler-native-rubato.linux-arm-gnueabihf.node",
+  "files": [
+    "resampler-native-rubato.linux-arm-gnueabihf.node"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  }
+}

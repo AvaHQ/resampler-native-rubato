@@ -1,0 +1,18 @@
+{
+  "name": "@avahq/resampler-native-rubato-android-arm64",
+  "version": "0.0.0",
+  "os": [
+    "android"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "resampler-native-rubato.android-arm64.node",
+  "files": [
+    "resampler-native-rubato.android-arm64.node"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  }
+}

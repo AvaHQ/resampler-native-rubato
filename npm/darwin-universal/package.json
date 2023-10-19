@@ -1,0 +1,15 @@
+{
+  "name": "@avahq/resampler-native-rubato-darwin-universal",
+  "version": "0.0.0",
+  "os": [
+    "darwin"
+  ],
+  "main": "resampler-native-rubato.darwin-universal.node",
+  "files": [
+    "resampler-native-rubato.darwin-universal.node"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  }
+}
