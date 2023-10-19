@@ -1,24 +1,30 @@
 
-import { reSampleBuffers } from '../index.js'
+import { reSampleBuffers, reSampleAudioFile } from '../index.js'
 import fs from "fs"
 
 
-let file_in = "/Users/dieudonn/Downloads/large-sample-usa.raw";
+let inputRawPath = "/Users/dieudonn/Downloads/big-talk.raw";
+let outputPath = "/Users/dieudonn/Downloads/big-talk-resampled.raw";
 
+
+// Buffer way
 
 fs.readFile(file_in, (err, data) => {
   if (err) {
-    console.error('Erreur lors de la lecture du fichier audio :', err);
+    console.error(err);
     return;
   }
 
-
-  console.log('Fichier audio chargé avec succès !');
-  console.log(typeof data, data.length);
-  // const arr = new Int16Array(data.buffer,z);
-
-  const res = reSampleBuffers(data, 44100, 16000, 2, 2);
-  console.log(res);
-  fs.writeFileSync("/Users/dieudonn/Downloads/large-sample-usa-napi.raw", res)
-
+  console.log('File loaded');
+  console.time("bufferReSample");
+  const res = reSampleBuffers({});
+  console.timeEnd("bufferReSample");
+  
+  fs.writeFileSync("/Users/dieudonn/Downloads/large-resampled.raw", res)
+  // File way for testing
+  console.time("fileResample");
+  reSampleAudioFile({outputPath, inputRawPath, argsAudioToReSample: {channels: 2, sampleRateInput: 44100, sampleRateOutput: 16000}})
+  console.timeEnd("fileResample");
 });
+
+
