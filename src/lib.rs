@@ -3,19 +3,21 @@ extern crate napi_derive;
 extern crate env_logger;
 extern crate rubato;
 
-use log::{debug, error};
+use log::debug;
 use rubato::{implement_resampler, FastFixedIn, PolynomialDegree};
 
-use std::convert::TryInto;
 use std::fs::File;
-use std::io::prelude::Read;
-use std::io::{BufReader, BufWriter, Cursor, Write};
+use std::io::{BufReader, Cursor};
 use std::time::Instant;
 use std::vec;
 
 use napi::bindgen_prelude::*;
 use napi::JsUndefined;
 use napi_derive::napi;
+
+use crate::helpers::{append_frames, buffer_to_vecs, skip_frames, write_frames_to_disk};
+
+mod helpers;
 
 const BYTE_PER_SAMPLE: usize = 8;
 
@@ -183,62 +185,7 @@ fn re_sample_audio_buffer(
   let duration_total_time = duration_total.elapsed();
   debug!("Resampling file took: {:?}", duration_total_time);
 
-  skip_frames(outdata, resampler_delay, nbr_output_frames)
-}
-
-// F64 is required, panic if f32
-fn buffer_to_vecs<R: Read>(input_buffer: &mut R, channels: usize) -> Vec<Vec<f64>> {
-  let mut buffer = vec![0u8; BYTE_PER_SAMPLE];
-  let mut wfs = Vec::with_capacity(channels);
-  for _chan in 0..channels {
-    wfs.push(Vec::new());
-  }
-  'outer: loop {
-    for wf in wfs.iter_mut() {
-      let bytes_read = input_buffer.read(&mut buffer).unwrap();
-      if bytes_read == 0 {
-        break 'outer;
-      }
-      let value = f64::from_le_bytes(buffer.as_slice().try_into().unwrap());
-      wf.push(value);
-    }
-  }
-  wfs
-}
-
-fn skip_frames(frames: Vec<Vec<f64>>, frames_to_skip: usize, frames_to_write: usize) -> Vec<u8> {
-  let mut collected_data: Vec<u8> = Vec::new();
-  let channels = frames.len();
-  let end = frames_to_skip + frames_to_write;
-  for frame_to_skip in frames_to_skip..end {
-    for frame in frames.iter().take(channels) {
-      let value64 = frame[frame_to_skip];
-      let bytes = value64.to_le_bytes();
-      collected_data.extend_from_slice(&bytes);
-    }
-  }
-  collected_data
-}
-
-fn append_frames(buffers: &mut [Vec<f64>], additional: &[Vec<f64>], nbr_frames: usize) {
-  buffers
-    .iter_mut()
-    .zip(additional.iter())
-    .for_each(|(b, a)| b.extend_from_slice(&a[..nbr_frames]));
-}
-
-/// Helper to write all frames to a file
-fn write_frames_to_disk(frames: Vec<u8>, output: String) {
-  let file = File::create(output).expect("Cannot create output file");
-  let mut file_out_disk = BufWriter::new(file);
-
-  if let Err(err) = file_out_disk.write_all(&frames) {
-    error!("Cannot send data to file : {:?}", err);
-  }
-
-  if let Err(err) = file_out_disk.flush() {
-    error!("Cannot clear tmp : {:?}", err);
-  }
+  skip_frames(outdata, resampler_delay, nbr_output_frames).unwrap()
 }
 
 #[cfg(test)]
@@ -247,7 +194,6 @@ mod tests {
 
   #[test]
   fn test_re_sample_audio_buffer_single_channel() {
-    // Créez un exemple de données d'entrée pour un seul canal
     let buffer = vec![vec![0.0, 1.0, 2.0, 3.0, 4.0]];
     let input_sample_rate = 44100;
     let output_sample_rate = 48000;
@@ -262,13 +208,10 @@ mod tests {
       output_channels,
     );
 
-    // Écrivez des assertions pour vérifier si le résultat est correct
-    assert_eq!(result.len(), 40);
-    // Vérifiez d'autres aspects du résultat, si nécessaire
+    assert_eq!(result.len(), 40); // I do not know if those test are revelant, any there for no regression
   }
   #[test]
   fn test_re_sample_audio_buffer_stereo() {
-    // Créez un exemple de données d'entrée pour deux canaux (stéréo)
     let buffer = vec![vec![0.0, 1.0, 2.0, 3.0, 4.0], vec![5.0, 6.0, 7.0, 8.0, 9.0]];
     let input_sample_rate = 44100;
     let output_sample_rate = 48000;

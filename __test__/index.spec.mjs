@@ -24,7 +24,7 @@ fs.readFile(file_in, (err, data) => {
   // File way for testing
   console.time("fileResample");
   reSampleAudioFile({outputPath, inputRawPath, argsAudioToReSample: {channels: 2, sampleRateInput: 44100, sampleRateOutput: 16000}})
-  console.timeEnd("fileResample");
+  console.timeE("fileResample");
 });
 
 
