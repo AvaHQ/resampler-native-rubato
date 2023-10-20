@@ -22,3 +22,4 @@ export interface ArgsAudioBuffer {
   inputBuffer: Buffer
 }
 export function reSampleBuffers(args: ArgsAudioBuffer): Buffer
+export function reSampleInt16Array(inputBuffer: Int16Array): Int16Array

@@ -2,6 +2,7 @@
 extern crate napi_derive;
 extern crate env_logger;
 extern crate rubato;
+mod helpers;
 
 use log::debug;
 use rubato::{implement_resampler, FastFixedIn, PolynomialDegree};
@@ -16,10 +17,6 @@ use napi::JsUndefined;
 use napi_derive::napi;
 
 use crate::helpers::{append_frames, buffer_to_vecs, skip_frames, write_frames_to_disk};
-
-mod helpers;
-
-const BYTE_PER_SAMPLE: usize = 8;
 
 implement_resampler!(SliceResampler, &[&[T]], &mut [Vec<T>]);
 
@@ -43,7 +40,6 @@ pub struct ArgsAudioFile {
 #[napi]
 pub fn re_sample_audio_file(args: ArgsAudioFile) {
   // call the buffer resampler fn here + write to file
-  //   let file_in = "/Users/dieudonn/Downloads/large-sample-usa.raw";
   let ArgsAudioFile {
     input_raw_path,
     output_path,
@@ -73,7 +69,9 @@ pub fn re_sample_audio_file(args: ArgsAudioFile) {
   );
   debug!("Time for convert the file is {:?}", start.elapsed());
 
-  write_frames_to_disk(res, output_path);
+  let mut result: Vec<u8> = Vec::new();
+  result.extend(res.iter().flat_map(|&f| f.to_le_bytes()));
+  write_frames_to_disk(result, output_path);
   JsUndefined::value_type();
 }
 
@@ -81,6 +79,10 @@ pub fn re_sample_audio_file(args: ArgsAudioFile) {
 pub struct ArgsAudioBuffer {
   pub args_audio_to_re_sample: ArgsAudioToReSample,
   pub input_buffer: Buffer,
+}
+pub struct ArgsAudioInt16Array {
+  pub args_audio_to_re_sample: ArgsAudioToReSample,
+  pub input_buffer: Int16Array,
 }
 
 #[napi]
@@ -94,7 +96,7 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
     sample_rate_input,
     sample_rate_output,
   } = args_audio_to_re_sample;
-  let input_slice: Vec<u8> = input_buffer.to_vec();
+  let input_slice = input_buffer.to_vec();
   let mut read_buffer = Box::new(Cursor::new(&input_slice));
   let data = buffer_to_vecs(&mut read_buffer, channels as usize);
 
@@ -112,7 +114,43 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
     channels,
   );
 
-  output_data.into()
+  let mut result: Vec<u8> = Vec::new();
+  result.extend(output_data.iter().flat_map(|&f| f.to_le_bytes()));
+  result.into()
+}
+
+#[napi]
+pub fn re_sample_int16Array(input_buffer: Int16Array) -> Int16Array {
+  let input_slice = input_buffer.to_vec();
+  let mut result = Vec::new();
+
+  for i in (0..input_slice.len()).step_by(2) {
+    if i + 1 < input_slice.len() {
+      let i16_value = i16::from_le(input_slice[i]);
+      let f64_value = f64::from(i16_value);
+      result.push(vec![f64_value]);
+    }
+  }
+
+  let output_data = re_sample_audio_buffer(result, 44100, 16000, 2, 2);
+
+  let res: Vec<i16> = output_data
+    .iter()
+    .map(|&f64_value| {
+      let i64_value = f64_value.to_bits() as i64;
+      if i64_value > i16::MAX as i64 {
+        i16::MAX
+      } else if i64_value < i16::MIN as i64 {
+        i16::MIN
+      } else {
+        i64_value as i16
+      }
+    })
+    .collect();
+
+  let res2 = Int16Array::new(res);
+
+  res2.into()
 }
 
 /**
@@ -125,7 +163,7 @@ fn re_sample_audio_buffer(
   output_sample_rate: u16,
   input_channels: u8,
   output_channels: u8,
-) -> Vec<u8> {
+) -> Vec<f64> {
   debug!("buffer size {}", buffer.len());
 
   let fs_in = input_sample_rate as usize;
@@ -208,7 +246,7 @@ mod tests {
       output_channels,
     );
 
-    assert_eq!(result.len(), 40); // I do not know if those test are revelant, any there for no regression
+    assert_eq!(result.len(), 5); // I do not know if those test are revelant, any there for no regression
   }
   #[test]
   fn test_re_sample_audio_buffer_stereo() {
@@ -226,6 +264,6 @@ mod tests {
       output_channels,
     );
 
-    assert_eq!(result.len(), 80);
+    assert_eq!(result.len(), 10);
   }
 }

@@ -30,8 +30,8 @@ pub fn skip_frames(
   frames: Vec<Vec<f64>>,
   frames_to_skip: usize,
   frames_to_write: usize,
-) -> Result<Vec<u8>, String> {
-  let mut collected_data: Vec<u8> = Vec::new();
+) -> Result<Vec<f64>, String> {
+  let mut collected_data: Vec<f64> = Vec::new();
   let channels = frames.len();
   let end = frames_to_skip + frames_to_write;
   if end > frames[0].len() {
@@ -44,8 +44,7 @@ pub fn skip_frames(
   for frame_to_skip in frames_to_skip..end {
     for frame in frames.iter().take(channels) {
       let value64 = frame[frame_to_skip];
-      let bytes = value64.to_le_bytes();
-      collected_data.extend_from_slice(&bytes);
+      collected_data.extend_from_slice(&[value64]);
     }
   }
   Ok(collected_data)
@@ -151,7 +150,7 @@ mod tests {
     let result = skip_frames(frames, frames_to_skip, frames_to_write).unwrap();
 
     // Expected result: Empty vector
-    let expected_result: Vec<u8> = vec![];
+    let expected_result: Vec<f64> = vec![];
     assert_eq!(result, expected_result);
   }
 
@@ -164,7 +163,7 @@ mod tests {
     let result = skip_frames(frames, frames_to_skip, frames_to_write).unwrap();
 
     // Expected result: Empty vector
-    let expected_result: Vec<u8> = vec![];
+    let expected_result: Vec<f64> = vec![];
     assert_eq!(result, expected_result);
   }
 }
