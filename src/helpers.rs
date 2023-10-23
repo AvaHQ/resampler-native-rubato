@@ -34,10 +34,7 @@ const BYTE_PER_SAMPLE: usize = 8;
 */
 pub fn buffer_to_vecs<R: Read>(input_buffer: &mut R, channels: usize) -> Vec<Vec<f64>> {
   let mut buffer = vec![0u8; BYTE_PER_SAMPLE];
-  let mut wfs = Vec::with_capacity(channels);
-  for _chan in 0..channels {
-    wfs.push(Vec::new());
-  }
+  let mut wfs = vec![Vec::new(); channels];
   'outer: loop {
     for wf in wfs.iter_mut() {
       let bytes_read = input_buffer.read(&mut buffer).unwrap();
@@ -78,20 +75,15 @@ pub fn buffer_to_vecs<R: Read>(input_buffer: &mut R, channels: usize) -> Vec<Vec
  assert_eq!(result[1], vec![654.0, -987.0]);
  ```
 */
-pub fn i16_vec_to_vecs(input_data: Vec<i16>, channels: usize) -> Vec<Vec<f64>> {
-  let mut wfs = vec![Vec::new(); channels];
-  let mut i16_iter = input_data.iter();
+pub fn i16_vec_to_vecs(input_data: &[i16], channels: usize) -> Vec<Vec<f64>> {
+  let mut wfs = vec![Vec::with_capacity(input_data.len() / channels); channels];
 
-  'outer: loop {
-    for wf in wfs.iter_mut() {
-      if let Some(&i16_value) = i16_iter.next() {
-        let f64_value = i16_value as f64;
-        wf.push(f64_value);
-      } else {
-        break 'outer;
-      }
-    }
+  for (i, &i16_value) in input_data.iter().enumerate() {
+    let f64_value = i16_value as f64;
+    let channel_index = i % channels;
+    wfs[channel_index].push(f64_value);
   }
+
   wfs
 }
 
@@ -248,7 +240,7 @@ mod tests {
     let channels = 2;
 
     // Appelez la fonction pour obtenir le résultat
-    let result = i16_vec_to_vecs(input_data, channels);
+    let result = i16_vec_to_vecs(&input_data, channels);
 
     // Vérifiez que le résultat a le nombre attendu de canaux
     assert_eq!(result.len(), channels);
@@ -264,7 +256,7 @@ mod tests {
     let channels = 1;
 
     // Appelez la fonction pour obtenir le résultat
-    let result = i16_vec_to_vecs(input_data, channels);
+    let result = i16_vec_to_vecs(&input_data, channels);
 
     // Vérifiez que le résultat a le nombre attendu de canaux
     assert_eq!(result.len(), channels);

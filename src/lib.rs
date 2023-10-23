@@ -95,13 +95,15 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
     sample_rate_input,
     sample_rate_output,
   } = args_audio_to_re_sample;
-  let input_slice = input_buffer.to_vec();
-  let mut read_buffer = Box::new(Cursor::new(&input_slice));
-  let data = buffer_to_vecs(&mut read_buffer, channels as usize);
   initialize_logger();
+  let buffer_conversion_time = Instant::now();
+  let mut read_buffer = Box::new(Cursor::new(&input_buffer));
+  let data = buffer_to_vecs(&mut read_buffer, channels as usize);
   debug!(
-    " Size of input_slice {} and {}",
-    input_slice.len(),
+    "It took {:?} to convert {} buffer elements vec to vec<vec<f64>> with [0] contains {} and [1] {}",
+    buffer_conversion_time.elapsed(),
+    input_buffer.len(),
+    data[0].len(),
     data[1].len()
   );
 
@@ -130,18 +132,21 @@ pub fn re_sample_int_16_array(args: ArgsAudioInt16Array) -> Int16Array {
     args_audio_to_re_sample,
     input_int16_array,
   } = args;
+
   let ArgsAudioToReSample {
     channels,
     sample_rate_input,
     sample_rate_output,
   } = args_audio_to_re_sample;
-  let input_slice = input_int16_array.to_vec();
-  let i16_data = i16_vec_to_vecs(input_slice, 2);
   initialize_logger();
+  let convert_i16_time = Instant::now();
+  let i16_data = i16_vec_to_vecs(&input_int16_array, 2);
   debug!(
-    "Input_buffer had {} i16_vec_to_vecs channel 1 has now {}",
+    "It took {:?} to convert {} i16 elements vec to vec<vec<f64>> with [0] contains {} and [1] {}",
+    convert_i16_time.elapsed(),
     input_int16_array.len(),
     i16_data[0].len(),
+    i16_data[1].len()
   );
 
   let output_data = re_sample_audio_buffer(
@@ -152,25 +157,19 @@ pub fn re_sample_int_16_array(args: ArgsAudioInt16Array) -> Int16Array {
     channels,
   );
 
-  debug!("Output_data is about {}", output_data.len());
+  let convert_i16_back_time = Instant::now();
 
   let i16_ouput: Vec<i16> = output_data
     .iter()
     .map(|&f64_value| {
       let i64_value = f64_value.to_bits() as i64;
-      if i64_value > i16::MAX as i64 {
-        i16::MAX
-      } else if i64_value < i16::MIN as i64 {
-        i16::MIN
-      } else {
-        i64_value as i16
-      }
+      i64_value.clamp(i16::MIN as i64, i16::MAX as i64) as i16
     })
     .collect();
 
   debug!(
-    "After re-convert to vec<i16 > i16_ouput is about {}",
-    i16_ouput.len()
+    "It took {:?} to convert i16 vec to vec<vec<f64>>",
+    convert_i16_back_time.elapsed()
   );
 
   Int16Array::new(i16_ouput)
