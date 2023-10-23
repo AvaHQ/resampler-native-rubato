@@ -195,3 +195,9 @@ Cargo.lock
 !.yarn/versions
 
 *.node
+
+__tests/__/output
+*.raw
+*.wav
+*.ogg
+!__tests/__/output/.gitkeep
