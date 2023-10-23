@@ -16,7 +16,9 @@ use napi::bindgen_prelude::*;
 use napi::JsUndefined;
 use napi_derive::napi;
 
-use crate::helpers::{append_frames, buffer_to_vecs, skip_frames, write_frames_to_disk};
+use crate::helpers::{
+  append_frames, buffer_to_vecs, i16_vec_to_vecs, skip_frames, write_frames_to_disk,
+};
 
 implement_resampler!(SliceResampler, &[&[T]], &mut [Vec<T>]);
 
@@ -80,10 +82,6 @@ pub struct ArgsAudioBuffer {
   pub args_audio_to_re_sample: ArgsAudioToReSample,
   pub input_buffer: Buffer,
 }
-pub struct ArgsAudioInt16Array {
-  pub args_audio_to_re_sample: ArgsAudioToReSample,
-  pub input_buffer: Int16Array,
-}
 
 #[napi]
 pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
@@ -119,22 +117,43 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
   result.into()
 }
 
+#[napi(object)]
+pub struct ArgsAudioInt16Array {
+  pub args_audio_to_re_sample: ArgsAudioToReSample,
+  pub input_int16_array: Int16Array,
+}
+
 #[napi]
-pub fn re_sample_int16Array(input_buffer: Int16Array) -> Int16Array {
-  let input_slice = input_buffer.to_vec();
-  let mut result = Vec::new();
+pub fn re_sample_int_16_array(args: ArgsAudioInt16Array) -> Int16Array {
+  let ArgsAudioInt16Array {
+    args_audio_to_re_sample,
+    input_int16_array,
+  } = args;
+  let ArgsAudioToReSample {
+    channels,
+    sample_rate_input,
+    sample_rate_output,
+  } = args_audio_to_re_sample;
+  let input_slice = input_int16_array.to_vec();
+  let i16_data = i16_vec_to_vecs(input_slice, 2);
 
-  for i in (0..input_slice.len()).step_by(2) {
-    if i + 1 < input_slice.len() {
-      let i16_value = i16::from_le(input_slice[i]);
-      let f64_value = f64::from(i16_value);
-      result.push(vec![f64_value]);
-    }
-  }
+  debug!(
+    "Input_buffer had {} i16_vec_to_vecs channel 1 has now {}",
+    input_int16_array.len(),
+    i16_data[0].len(),
+  );
 
-  let output_data = re_sample_audio_buffer(result, 44100, 16000, 2, 2);
+  let output_data = re_sample_audio_buffer(
+    i16_data,
+    sample_rate_input,
+    sample_rate_output,
+    channels,
+    channels,
+  );
 
-  let res: Vec<i16> = output_data
+  debug!("Output_data is about {}", output_data.len());
+
+  let i16_ouput: Vec<i16> = output_data
     .iter()
     .map(|&f64_value| {
       let i64_value = f64_value.to_bits() as i64;
@@ -148,9 +167,12 @@ pub fn re_sample_int16Array(input_buffer: Int16Array) -> Int16Array {
     })
     .collect();
 
-  let res2 = Int16Array::new(res);
+  println!(
+    "After re-convert to vec<i16 > i16_ouput is about {}",
+    i16_ouput.len()
+  );
 
-  res2.into()
+  Int16Array::new(i16_ouput)
 }
 
 /**

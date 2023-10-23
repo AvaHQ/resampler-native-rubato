@@ -20,20 +20,21 @@ fs.readFile(inputRawPath, (err, data) => {
   console.log('Array16 base length is ', dataInt16Array.length);
   
   console.time("int16ArrayReSample");
-  const resInt16 = reSampleInt16Array(dataInt16Array);
+  const resInt16 = reSampleInt16Array({inputInt16Array: dataInt16Array, argsAudioToReSample:{channels: 2, sampleRateInput: 44100, sampleRateOutput: 16000}});
   console.timeEnd("int16ArrayReSample");
   console.log('resInt16 base length is ', resInt16.length);
+  fs.writeFileSync("/Users/dieudonn/Downloads/big-talk-resampled-1.raw", resInt16)
 
 
-  console.time("bufferReSample");
-  const resBuffer = reSampleBuffers({inputBuffer: data, argsAudioToReSample: {channels: 2, sampleRateInput: 44100, sampleRateOutput: 32000}});
-  console.timeEnd("bufferReSample");
+  // console.time("bufferReSample");
+  // const resBuffer = reSampleBuffers({inputBuffer: data, argsAudioToReSample: {channels: 2, sampleRateInput: 44100, sampleRateOutput: 32000}});
+  // console.timeEnd("bufferReSample");
   
-  fs.writeFileSync("/Users/dieudonn/Downloads/big-talk-resampled-1.raw", resBuffer)
+  // fs.writeFileSync("/Users/dieudonn/Downloads/big-talk-resampled-1.raw", resBuffer)
   // File way for testing
-  console.time("fileResample");
-  reSampleAudioFile({outputPath, inputRawPath, argsAudioToReSample: {channels: 2, sampleRateInput: 44100, sampleRateOutput: 48000}})
-  console.timeEnd("fileResample");
+  // console.time("fileResample");
+  // reSampleAudioFile({outputPath, inputRawPath, argsAudioToReSample: {channels: 2, sampleRateInput: 44100, sampleRateOutput: 16000}})
+  // console.timeEnd("fileResample");
 });
 
 

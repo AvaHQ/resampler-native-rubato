@@ -26,6 +26,25 @@ pub fn buffer_to_vecs<R: Read>(input_buffer: &mut R, channels: usize) -> Vec<Vec
   wfs
 }
 
+pub fn i16_vec_to_vecs(input_data: Vec<i16>, channels: usize) -> Vec<Vec<f64>> {
+  let mut wfs = vec![Vec::new(); channels];
+  let mut i16_iter = input_data.iter();
+
+  'outer: loop {
+    for wf in wfs.iter_mut() {
+      if let Some(&i16_value) = i16_iter.next() {
+        // Convertir l'i16 en f64
+        let f64_value = i16_value as f64;
+        wf.push(f64_value);
+      } else {
+        break 'outer; // Sortie si nous avons épuisé les données i16
+      }
+    }
+  }
+
+  wfs
+}
+
 pub fn skip_frames(
   frames: Vec<Vec<f64>>,
   frames_to_skip: usize,
