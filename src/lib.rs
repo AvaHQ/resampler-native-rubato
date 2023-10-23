@@ -15,6 +15,8 @@ use napi::bindgen_prelude::*;
 use napi::JsUndefined;
 use napi_derive::napi;
 
+static LOGGER_INITIALIZED: std::sync::Once = std::sync::Once::new();
+
 use crate::helpers::{
   append_frames, buffer_to_vecs, i16_vec_to_vecs, skip_frames, write_frames_to_disk,
 };
@@ -51,7 +53,7 @@ pub fn re_sample_audio_file(args: ArgsAudioFile) {
     sample_rate_input,
     sample_rate_output,
   } = args_audio_to_re_sample;
-
+  initialize_logger();
   let file_in_disk = File::open(input_raw_path).expect("Can't open file");
   let mut file_in_reader = BufReader::new(file_in_disk);
   debug!("Data inside buffer {}", file_in_reader.capacity());
@@ -68,7 +70,7 @@ pub fn re_sample_audio_file(args: ArgsAudioFile) {
     channels,
     channels,
   );
-  debug!("Time for convert the file is {:?}", start.elapsed());
+  debug!("Time to convert the file is {:?}", start.elapsed());
 
   let mut result: Vec<u8> = Vec::new();
   result.extend(res.iter().flat_map(|&f| f.to_le_bytes()));
@@ -96,7 +98,7 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
   let input_slice = input_buffer.to_vec();
   let mut read_buffer = Box::new(Cursor::new(&input_slice));
   let data = buffer_to_vecs(&mut read_buffer, channels as usize);
-
+  initialize_logger();
   debug!(
     " Size of input_slice {} and {}",
     input_slice.len(),
@@ -135,7 +137,7 @@ pub fn re_sample_int_16_array(args: ArgsAudioInt16Array) -> Int16Array {
   } = args_audio_to_re_sample;
   let input_slice = input_int16_array.to_vec();
   let i16_data = i16_vec_to_vecs(input_slice, 2);
-
+  initialize_logger();
   debug!(
     "Input_buffer had {} i16_vec_to_vecs channel 1 has now {}",
     input_int16_array.len(),
@@ -175,7 +177,8 @@ pub fn re_sample_int_16_array(args: ArgsAudioInt16Array) -> Int16Array {
 }
 
 /**
- * Rust helpers functions
+ * This is the Rust main smart ,function, use all pure function inside
+ * Main logic is here
  */
 
 fn re_sample_audio_buffer(
@@ -245,6 +248,15 @@ fn re_sample_audio_buffer(
   debug!("Resampling file took: {:?}", duration_total_time);
 
   skip_frames(outdata, resampler_delay, nbr_output_frames).unwrap()
+}
+
+/**
+ * Singleton of logger because it cannot be instanciated more than once
+ */
+pub fn initialize_logger() {
+  LOGGER_INITIALIZED.call_once(|| {
+    env_logger::init();
+  });
 }
 
 #[cfg(test)]
