@@ -1,5 +1,5 @@
 
-import { reSampleBuffers, reSampleAudioFile } from '../index.js'
+import { reSampleBuffers, reSampleAudioFile,reSampleInt16Array } from '../index.js'
 import fs from "fs"
 
 
@@ -14,16 +14,22 @@ fs.readFile(inputRawPath, (err, data) => {
     console.error(err);
     return;
   }
-
-  let test = new Int16Array(data.buffer);
-  let test2 = Buffer.from(test);
-
   console.log('File loaded');
+  
+  let dataInt16Array = new Int16Array(data.buffer);
+  console.log('Array16 base length is ', dataInt16Array.length);
+  
+  console.time("int16ArrayReSample");
+  const resInt16 = reSampleInt16Array(dataInt16Array);
+  console.timeEnd("int16ArrayReSample");
+  console.log('resInt16 base length is ', resInt16.length);
+
+
   console.time("bufferReSample");
-  const res = reSampleBuffers({inputBuffer: data, argsAudioToReSample: {channels: 2, sampleRateInput: 44100, sampleRateOutput: 32000}});
+  const resBuffer = reSampleBuffers({inputBuffer: data, argsAudioToReSample: {channels: 2, sampleRateInput: 44100, sampleRateOutput: 32000}});
   console.timeEnd("bufferReSample");
   
-  fs.writeFileSync("/Users/dieudonn/Downloads/big-talk-resampled-1.raw", res)
+  fs.writeFileSync("/Users/dieudonn/Downloads/big-talk-resampled-1.raw", resBuffer)
   // File way for testing
   console.time("fileResample");
   reSampleAudioFile({outputPath, inputRawPath, argsAudioToReSample: {channels: 2, sampleRateInput: 44100, sampleRateOutput: 48000}})
