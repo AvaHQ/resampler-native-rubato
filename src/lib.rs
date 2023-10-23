@@ -1,6 +1,5 @@
-#[macro_use]
-extern crate napi_derive;
 extern crate env_logger;
+extern crate napi_derive;
 extern crate rubato;
 mod helpers;
 
@@ -167,7 +166,7 @@ pub fn re_sample_int_16_array(args: ArgsAudioInt16Array) -> Int16Array {
     })
     .collect();
 
-  println!(
+  debug!(
     "After re-convert to vec<i16 > i16_ouput is about {}",
     i16_ouput.len()
   );
