@@ -2,20 +2,20 @@ name: CI
 env:
   DEBUG: napi:*
   APP_NAME: resampler-native-rubato
-  MACOSX_DEPLOYMENT_TARGET: '10.13'
+  MACOSX_DEPLOYMENT_TARGET: "10.13"
 permissions:
   contents: write
   id-token: write
-'on':
+"on":
   push:
     branches:
       - main
     tags-ignore:
-      - '**'
+      - "**"
     paths-ignore:
-      - '**/*.md'
+      - "**/*.md"
       - LICENSE
-      - '**/*.gitignore'
+      - "**/*.gitignore"
       - .editorconfig
       - docs/**
   pull_request: null
@@ -92,6 +92,7 @@ jobs:
             build: yarn build --target aarch64-pc-windows-msvc
     name: stable - ${{ matrix.settings.target }} - node@18
     runs-on: ${{ matrix.settings.host }}
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v3
       - name: Setup node
@@ -144,7 +145,7 @@ jobs:
         if: ${{ matrix.settings.docker }}
         with:
           image: ${{ matrix.settings.docker }}
-          options: '--user 0:0 -v ${{ github.workspace }}/.cargo-cache/git/db:/usr/local/cargo/git/db -v ${{ github.workspace }}/.cargo/registry/cache:/usr/local/cargo/registry/cache -v ${{ github.workspace }}/.cargo/registry/index:/usr/local/cargo/registry/index -v ${{ github.workspace }}:/build -w /build'
+          options: "--user 0:0 -v ${{ github.workspace }}/.cargo-cache/git/db:/usr/local/cargo/git/db -v ${{ github.workspace }}/.cargo/registry/cache:/usr/local/cargo/registry/cache -v ${{ github.workspace }}/.cargo/registry/index:/usr/local/cargo/registry/index -v ${{ github.workspace }}:/build -w /build"
           run: ${{ matrix.settings.build }}
       - name: Build
         run: ${{ matrix.settings.build }}
@@ -156,54 +157,54 @@ jobs:
           name: bindings-${{ matrix.settings.target }}
           path: ${{ env.APP_NAME }}.*.node
           if-no-files-found: error
-  build-freebsd:
-    runs-on: macos-12
-    name: Build FreeBSD
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build
-        id: build
-        uses: vmactions/freebsd-vm@v0
-        env:
-          DEBUG: napi:*
-          RUSTUP_HOME: /usr/local/rustup
-          CARGO_HOME: /usr/local/cargo
-          RUSTUP_IO_THREADS: 1
-        with:
-          envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS
-          usesh: true
-          mem: 3000
-          prepare: |
-            pkg install -y -f curl node libnghttp2 npm yarn
-            curl https://sh.rustup.rs -sSf --output rustup.sh
-            sh rustup.sh -y --profile minimal --default-toolchain beta
-            export PATH="/usr/local/cargo/bin:$PATH"
-            echo "~~~~ rustc --version ~~~~"
-            rustc --version
-            echo "~~~~ node -v ~~~~"
-            node -v
-            echo "~~~~ yarn --version ~~~~"
-            yarn --version
-          run: |
-            export PATH="/usr/local/cargo/bin:$PATH"
-            pwd
-            ls -lah
-            whoami
-            env
-            freebsd-version
-            yarn install
-            yarn build
-            strip -x *.node
-            yarn test
-            rm -rf node_modules
-            rm -rf target
-            rm -rf .yarn/cache
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: bindings-freebsd
-          path: ${{ env.APP_NAME }}.*.node
-          if-no-files-found: error
+  # build-freebsd:
+  # runs-on: macos-12
+  # name: Build FreeBSD
+  # steps:
+  #   - uses: actions/checkout@v3
+  #   - name: Build
+  #     id: build
+  #     uses: vmactions/freebsd-vm@v0
+  #     env:
+  #       DEBUG: napi:*
+  #       RUSTUP_HOME: /usr/local/rustup
+  #       CARGO_HOME: /usr/local/cargo
+  #       RUSTUP_IO_THREADS: 1
+  #     with:
+  #       envs: DEBUG RUSTUP_HOME CARGO_HOME RUSTUP_IO_THREADS
+  #       usesh: true
+  #       mem: 3000
+  #       prepare: |
+  #         pkg install -y -f curl node libnghttp2 npm yarn
+  #         curl https://sh.rustup.rs -sSf --output rustup.sh
+  #         sh rustup.sh -y --profile minimal --default-toolchain beta
+  #         export PATH="/usr/local/cargo/bin:$PATH"
+  #         echo "~~~~ rustc --version ~~~~"
+  #         rustc --version
+  #         echo "~~~~ node -v ~~~~"
+  #         node -v
+  #         echo "~~~~ yarn --version ~~~~"
+  #         yarn --version
+  #       run: |
+  #         export PATH="/usr/local/cargo/bin:$PATH"
+  #         pwd
+  #         ls -lah
+  #         whoami
+  #         env
+  #         freebsd-version
+  #         yarn install
+  #         yarn build
+  #         strip -x *.node
+  #         yarn test
+  #         rm -rf node_modules
+  #         rm -rf target
+  #         rm -rf .yarn/cache
+  #   - name: Upload artifact
+  #     uses: actions/upload-artifact@v3
+  #     with:
+  #       name: bindings-freebsd
+  #       path: ${{ env.APP_NAME }}.*.node
+  #       if-no-files-found: error
   test-macOS-windows-binding:
     name: Test bindings on ${{ matrix.settings.target }} - node@${{ matrix.node }}
     needs:
@@ -217,10 +218,11 @@ jobs:
           - host: windows-latest
             target: x86_64-pc-windows-msvc
         node:
-          - '14'
-          - '16'
-          - '18'
+          - "14"
+          - "16"
+          - "18"
     runs-on: ${{ matrix.settings.host }}
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v3
       - name: Setup node
@@ -249,10 +251,11 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '14'
-          - '16'
-          - '18'
+          - "14"
+          - "16"
+          - "18"
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v3
       - name: Setup node
@@ -281,10 +284,11 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '14'
-          - '16'
-          - '18'
+          - "14"
+          - "16"
+          - "18"
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v3
       - name: Setup node
@@ -315,10 +319,11 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '14'
-          - '16'
-          - '18'
+          - "14"
+          - "16"
+          - "18"
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v3
       - name: Download artifacts
@@ -343,7 +348,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: node:${{ matrix.node }}-slim
-          options: '--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build'
+          options: "--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build"
           run: |
             set -e
             yarn test
@@ -353,6 +358,7 @@ jobs:
     needs:
       - build
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v3
       - name: Download artifacts
@@ -377,7 +383,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: node:lts-alpine
-          options: '--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build'
+          options: "--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build"
           run: |
             set -e
             yarn test
@@ -389,10 +395,11 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - '14'
-          - '16'
-          - '18'
+          - "14"
+          - "16"
+          - "18"
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v3
       - name: Download artifacts
@@ -416,7 +423,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: node:${{ matrix.node }}-bullseye-slim
-          options: '--platform linux/arm/v7 -v ${{ github.workspace }}:/build -w /build'
+          options: "--platform linux/arm/v7 -v ${{ github.workspace }}:/build -w /build"
           run: |
             set -e
             yarn test
@@ -426,6 +433,7 @@ jobs:
     needs:
       - build
     runs-on: macos-latest
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v3
       - name: Setup node
@@ -457,8 +465,9 @@ jobs:
   publish:
     name: Publish
     runs-on: ubuntu-latest
+    timeout-minutes: 8
     needs:
-      - build-freebsd
+      # - build-freebsd
       - test-macOS-windows-binding
       - test-linux-x64-gnu-binding
       - test-linux-x64-musl-binding

@@ -6,7 +6,7 @@ We create a bindign via napi.rs and published it.
 
 ## Usage
 
-## Build
+## Build (if needed)
 
 `yarn && yarn run build`
 
