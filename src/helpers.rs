@@ -10,8 +10,10 @@ const BYTE_PER_SAMPLE: usize = 8;
 
  # Arguments
 
- * `input_buffer` - A mutable reference to a type implementing the Read trait, such as a file or a buffer.
+ * `input_buffer` - A mutable reference to a type implementing the Read trait, such as a file or a buffer. The bytes of this buffer always assume to represent i16 number of little endian
  * `channels` - The number of channels in the resulting vector of vectors.
+
+ The samples are memory contigus, so we have two smaple for two channels.
 
  # Returns
 
@@ -32,21 +34,7 @@ const BYTE_PER_SAMPLE: usize = 8;
  // You can now process the resulting audio data.
  ```
 */
-pub fn buffer_to_vecs<R: Read>(input_buffer: &mut R, channels: usize) -> Vec<Vec<f64>> {
-  let mut buffer = vec![0u8; BYTE_PER_SAMPLE];
-  let mut wfs = vec![Vec::new(); channels];
-  'outer: loop {
-    for wf in wfs.iter_mut() {
-      let bytes_read = input_buffer.read(&mut buffer).unwrap();
-      if bytes_read == 0 {
-        break 'outer;
-      }
-      let value = f64::from_le_bytes(buffer.as_slice().try_into().unwrap()); //Little endian
-      wf.push(value);
-    }
-  }
-  wfs
-}
+pub fn buffer_to_vecs<R: Read>(input_buffer: &mut R, channels: usize) -> Vec<Vec<f64>> {}
 
 /**
  Converts a vector of signed 16-bit integers (i16) into a vector of vectors containing 64-bit floating-point numbers (f64).
@@ -276,11 +264,15 @@ mod tests {
 
     let channels = 1;
     let result = buffer_to_vecs(&mut input_buffer, channels);
-
     // mono so all inside same deep vec
     let expected_result: Vec<Vec<f64>> = vec![vec![
-      f64::from_le_bytes([1, 2, 3, 4, 5, 6, 7, 8]),
-      f64::from_le_bytes([9, 10, 11, 12, 13, 14, 15, 16]),
+      i16::from_le_bytes([1, 2]).into(),
+      i16::from_le_bytes([2, 3]).into(),
+      i16::from_le_bytes([4, 5]).into(),
+      i16::from_le_bytes([6, 7]).into(),
+      i16::from_le_bytes([8, 9]).into(),
+      // f64::from_le_bytes([1, 2, 3, 4, 5, 6, 7, 8]),
+      // f64::from_le_bytes([9, 10, 11, 12, 13, 14, 15, 16]),
     ]];
     assert_eq!(result, expected_result);
   }

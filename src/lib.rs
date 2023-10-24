@@ -116,7 +116,7 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
   );
 
   let mut result: Vec<u8> = Vec::new();
-  result.extend(output_data.iter().flat_map(|&f| f.to_le_bytes()));
+  result.extend(output_data.iter().flat_map(|&f| f.to_le_bytes())); // ? instead of .collect just to be faster
   result.into()
 }
 
@@ -162,8 +162,11 @@ pub fn re_sample_int_16_array(args: ArgsAudioInt16Array) -> Int16Array {
   let i16_ouput: Vec<i16> = output_data
     .iter()
     .map(|&f64_value| {
-      let i64_value = f64_value.to_bits() as i64;
-      i64_value.clamp(i16::MIN as i64, i16::MAX as i64) as i16
+      // ? hack to be faster
+      let test = f64_value.clamp(i16::MIN as f64, i16::MAX as f64) as i16;
+      // let i64_value = f64_value.to_bits() as i64;
+      // i64_value.clamp(i16::MIN as i64, i16::MAX as i64) as i16
+      test
     })
     .collect();
 
