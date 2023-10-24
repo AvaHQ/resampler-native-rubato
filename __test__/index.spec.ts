@@ -31,11 +31,11 @@ beforeAll(async () => {
   } catch (error) {
     console.error(`error : ${error}`);
   }
-});
+}, 60000);
 
 afterAll(async () => {
   await converToWavToCheck();
-});
+}, 60000);
 
 describe("Native", () => {
   test("It Should be able to re-sampler INT16ARRAY in a correct time", () => {
@@ -47,21 +47,21 @@ describe("Native", () => {
       int16ArrayReSampleEndTime - int16ArrayReSampleStartTime
     ).toBeLessThan(10000); // ? No regression test, should not be > 10s
     expect(resInt16.length).toEqual(270653648);
-  });
+  }, 15000);
   test("It Should be able to re-sampler BUFFER in a correct time", () => {
     let bufferReSampleStartTime = Date.now();
     const resBuffer = fromBuffer(data);
     let bufferReSampleEndTime = Date.now();
     expect(bufferReSampleEndTime - bufferReSampleStartTime).toBeLessThan(2500); // ? No regression test, should not be > 10s
     expect(resBuffer.length).toEqual(541307296);
-  });
+  }, 10000);
   test("It Should be able to re-sampler FILE in a correct time", () => {
     let fileReSampleStartTime = Date.now();
     fromFile(outputPathRaw);
     let fileReSampleEndTime = Date.now();
     expect(fileReSampleEndTime - fileReSampleStartTime).toBeLessThan(2500); // ? No regression test, should not be > 10s
     expect(fs.existsSync(outputPathFile)).toBe(true);
-  });
+  }, 10000);
 });
 
 async function downloadFile(url: string, outputPath: string) {
