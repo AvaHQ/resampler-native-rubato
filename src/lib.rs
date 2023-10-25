@@ -40,44 +40,43 @@ pub struct ArgsAudioFile {
   pub output_path: String,
 }
 
-#[napi]
-pub fn re_sample_audio_file(args: ArgsAudioFile) {
-  // call the buffer resampler fn here + write to file
-  let ArgsAudioFile {
-    input_raw_path,
-    output_path,
-    args_audio_to_re_sample,
-  } = args;
-  let ArgsAudioToReSample {
-    channels,
-    sample_rate_input,
-    sample_rate_output,
-  } = args_audio_to_re_sample;
-  initialize_logger();
-  let file_in_disk = File::open(input_raw_path).expect("Can't open file");
-  let mut file_in_reader = BufReader::new(file_in_disk);
-  debug!("Data inside buffer {}", file_in_reader.capacity());
+// #[napi]
+// pub fn re_sample_audio_file(args: ArgsAudioFile) {
+//   // call the buffer resampler fn here + write to file
+//   let ArgsAudioFile {
+//     input_raw_path,
+//     output_path,
+//     args_audio_to_re_sample,
+//   } = args;
+//   let ArgsAudioToReSample {
+//     channels,
+//     sample_rate_input,
+//     sample_rate_output,
+//   } = args_audio_to_re_sample;
+//   initialize_logger();
+//   let file_in_disk = File::open(input_raw_path).expect("Can't open file");
+//   let mut file_in_reader = BufReader::new(file_in_disk);
+//   debug!("Data inside buffer {}", file_in_reader.capacity());
 
-  let indata = buffer_to_vecs(&mut file_in_reader, 2);
-  debug!("re_sample_audio_file indata lenght {}", indata.len());
+//   let indata = buffer_to_vecs(&mut file_in_reader, 2);
+//   debug!("re_sample_audio_file indata lenght {}", indata.len());
 
-  //re_sample_audio_buffer
-  let start = Instant::now();
-  let res = re_sample_audio_buffer(
-    indata,
-    sample_rate_input,
-    sample_rate_output,
-    channels,
-    channels,
-  );
-  debug!("Time to convert the file is {:?}", start.elapsed());
+//   //re_sample_audio_buffer
+//   let start = Instant::now();
+//   let res = re_sample_audio_buffer(
+//     indata,
+//     sample_rate_input,
+//     sample_rate_output,
+//     channels,
+//     channels,
+//   );
+//   debug!("Time to convert the file is {:?}", start.elapsed());
 
-  let mut result: Vec<u8> = Vec::new();
-  result.extend(res.iter().flat_map(|&f| f.to_le_bytes()));
-  write_frames_to_disk(result, output_path);
-  JsUndefined::value_type();
-}
-
+//   let mut result: Vec<u8> = Vec::new();
+//   result.extend(res.iter().flat_map(|&f| f.to_le_bytes()));
+//   write_frames_to_disk(result, output_path);
+//   JsUndefined::value_type();
+// }
 #[napi(object)]
 pub struct ArgsAudioBuffer {
   pub args_audio_to_re_sample: ArgsAudioToReSample,
@@ -97,8 +96,10 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
   } = args_audio_to_re_sample;
   initialize_logger();
   let buffer_conversion_time = Instant::now();
+  debug!("Before buffer_to_vecs length is {}", &input_buffer.len());
   let mut read_buffer = Box::new(Cursor::new(&input_buffer));
   let data = buffer_to_vecs(&mut read_buffer, channels as usize);
+  debug!("After buffer_to_vecs length is {}", &data[0].len());
   debug!(
     "It took {:?} to convert {} buffer elements vec to vec<vec<f64>> with [0] contains {} and [1] {}",
     buffer_conversion_time.elapsed(),
@@ -115,9 +116,8 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
     channels,
   );
 
-  let mut result: Vec<u8> = Vec::new();
-  result.extend(output_data.iter().flat_map(|&f| f.to_le_bytes())); // ? instead of .collect just to be faster
-  result.into()
+  let vec_i16: Vec<i16> = output_data.iter().map(|&f| f as i16).collect();
+  vec_i16.into()
 }
 
 #[napi(object)]
@@ -247,7 +247,7 @@ fn re_sample_audio_buffer(
   let nbr_output_frames = (nbr_input_frames as f64 * fs_out as f64 / fs_in as f64) as usize;
 
   let duration_total_time = duration_total.elapsed();
-  debug!("Resampling file took: {:?}", duration_total_time);
+  debug!("Resampling buffer took: {:?}", duration_total_time);
 
   skip_frames(outdata, resampler_delay, nbr_output_frames).unwrap()
 }

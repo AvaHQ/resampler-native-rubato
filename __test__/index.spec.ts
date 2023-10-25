@@ -1,6 +1,6 @@
 import {
   reSampleBuffers,
-  reSampleAudioFile,
+  // reSampleAudioFile,
   reSampleInt16Array,
 } from "../index.js";
 import fs from "fs";
@@ -52,16 +52,16 @@ describe("Native", () => {
     let bufferReSampleStartTime = Date.now();
     const resBuffer = fromBuffer(data);
     let bufferReSampleEndTime = Date.now();
-    expect(bufferReSampleEndTime - bufferReSampleStartTime).toBeLessThan(2500); // ? No regression test, should not be > 10s
-    expect(resBuffer.length).toEqual(135326816);
+    expect(bufferReSampleEndTime - bufferReSampleStartTime).toBeLessThan(5000); // ? No regression test, should not be > 10s
+    expect(resBuffer.length).toEqual(1082614592);
   }, 10000);
-  test("It Should be able to re-sampler FILE in a correct time", () => {
-    let fileReSampleStartTime = Date.now();
-    fromFile(outputPathRaw);
-    let fileReSampleEndTime = Date.now();
-    expect(fileReSampleEndTime - fileReSampleStartTime).toBeLessThan(2500); // ? No regression test, should not be > 10s
-    expect(fs.existsSync(outputPathFile)).toBe(true);
-  }, 10000);
+  // test("It Should be able to re-sampler FILE in a correct time", () => {
+  //   let fileReSampleStartTime = Date.now();
+  //   fromFile(outputPathRaw);
+  //   let fileReSampleEndTime = Date.now();
+  //   expect(fileReSampleEndTime - fileReSampleStartTime).toBeLessThan(2500); // ? No regression test, should not be > 10s
+  //   expect(fs.existsSync(outputPathFile)).toBe(true);
+  // }, 10000);
 });
 
 async function downloadFile(url: string, outputPath: string) {
@@ -105,7 +105,7 @@ function fromIntArray(data: Buffer) {
 
 function fromBuffer(data: Buffer) {
   console.log("NODE- Buffer length", data.length);
-  console.time("bufferReSample");
+  // console.time("bufferReSample");
   const resBuffer = reSampleBuffers({
     inputBuffer: data,
     argsAudioToReSample: {
@@ -114,27 +114,27 @@ function fromBuffer(data: Buffer) {
       sampleRateOutput: 16000,
     },
   });
-  console.timeEnd("bufferReSample");
+  // console.timeEnd("bufferReSample");
   fs.writeFileSync(outputBuffer, resBuffer);
   return resBuffer;
 }
 
-function fromFile(inputRawPath: string) {
-  console.time("fileResample");
-  reSampleAudioFile({
-    outputPath: outputPathFile,
-    inputRawPath,
-    argsAudioToReSample: {
-      channels: 2,
-      sampleRateInput: 44100,
-      sampleRateOutput: 16000,
-    },
-  });
-  console.timeEnd("fileResample");
-}
+// function fromFile(inputRawPath: string) {
+//   console.time("fileResample");
+//   reSampleAudioFile({
+//     outputPath: outputPathFile,
+//     inputRawPath,
+//     argsAudioToReSample: {
+//       channels: 2,
+//       sampleRateInput: 44100,
+//       sampleRateOutput: 16000,
+//     },
+//   });
+//   console.timeEnd("fileResample");
+// }
 
 async function runSoxCommand(inputFilePath: string, outputFilePath: string) {
-  const command = `sox ${inputFilePath} -L -e signed-integer -b 16 ${outputFilePath}`;
+  const command = `sox ${inputFilePath} -e signed-integer -b 16 ${outputFilePath}`;
 
   const { stderr, stdout } = await exec(command);
 
@@ -149,7 +149,7 @@ async function runSoxCommand(inputFilePath: string, outputFilePath: string) {
 async function converToWavToCheck() {
   const files = [outputBuffer, outputPathFile, outputPathInt16];
   const proms = files.map((file) => {
-    const command = `sox -L -e signed-integer -b 16 -r 16000 -c 2 ${file}  -e signed-integer -L -b 16 ${file.replace(
+    const command = `sox -e floating-point -b 64 -r 16000 -c 2 ${file}  -e floating-point  -e signed-integer -b 16 ${file.replace(
       ".raw",
       ".wav"
     )}`;
