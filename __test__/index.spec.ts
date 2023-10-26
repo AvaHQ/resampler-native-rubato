@@ -149,7 +149,7 @@ async function runSoxCommand(inputFilePath: string, outputFilePath: string) {
 async function converToWavToCheck() {
   const files = [outputBuffer, outputPathFile, outputPathInt16];
   const proms = files.map((file) => {
-    const command = `sox -e floating-point -b 64 -r 16000 -c 2 ${file}  -e floating-point  -e signed-integer -b 16 ${file.replace(
+    const command = `sox -e signed-integer -b 16 -r 16000 -c 2 ${file} -e signed-integer -b 16 ${file.replace(
       ".raw",
       ".wav"
     )}`;

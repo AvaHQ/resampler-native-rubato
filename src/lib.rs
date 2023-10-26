@@ -18,7 +18,7 @@ use napi_derive::napi;
 static LOGGER_INITIALIZED: std::sync::Once = std::sync::Once::new();
 
 use crate::helpers::{
-  append_frames, buffer_to_vecs, i16_vec_to_vecs, skip_frames, write_frames_to_disk,
+  append_frames, buffer_i16_to_vecs, i16_vec_to_vecs, skip_frames, write_frames_to_disk,
 };
 
 implement_resampler!(SliceResampler, &[&[T]], &mut [Vec<T>]);
@@ -58,7 +58,7 @@ pub struct ArgsAudioFile {
 //   let mut file_in_reader = BufReader::new(file_in_disk);
 //   debug!("Data inside buffer {}", file_in_reader.capacity());
 
-//   let indata = buffer_to_vecs(&mut file_in_reader, 2);
+//   let indata = buffer_i16_to_vecs(&mut file_in_reader, 2);
 //   debug!("re_sample_audio_file indata lenght {}", indata.len());
 
 //   //re_sample_audio_buffer
@@ -84,7 +84,7 @@ pub struct ArgsAudioBuffer {
 }
 
 #[napi]
-pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
+pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Int16Array {
   let ArgsAudioBuffer {
     args_audio_to_re_sample,
     input_buffer,
@@ -96,10 +96,13 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
   } = args_audio_to_re_sample;
   initialize_logger();
   let buffer_conversion_time = Instant::now();
-  debug!("Before buffer_to_vecs length is {}", &input_buffer.len());
+  debug!(
+    "Before buffer_i16_to_vecs length is {}",
+    &input_buffer.len()
+  );
   let mut read_buffer = Box::new(Cursor::new(&input_buffer));
-  let data = buffer_to_vecs(&mut read_buffer, channels as usize);
-  debug!("After buffer_to_vecs length is {}", &data[0].len());
+  let data = buffer_i16_to_vecs(&mut read_buffer, channels as usize);
+  debug!("After buffer_i16_to_vecs length is {}", &data[0].len());
   debug!(
     "It took {:?} to convert {} buffer elements vec to vec<vec<f64>> with [0] contains {} and [1] {}",
     buffer_conversion_time.elapsed(),
@@ -117,7 +120,7 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
   );
 
   let vec_i16: Vec<i16> = output_data.iter().map(|&f| f as i16).collect();
-  vec_i16.into()
+  Int16Array::new(vec_i16)
 }
 
 #[napi(object)]
