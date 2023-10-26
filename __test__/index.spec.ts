@@ -1,7 +1,7 @@
 import {
   reSampleBuffers,
-  // reSampleAudioFile,
-  reSampleInt16Array,
+  reSampleAudioFile,
+  reSampleInt16Buffer,
 } from "../index.js";
 import fs from "fs";
 import { readFile } from "fs/promises";
@@ -38,16 +38,16 @@ afterAll(async () => {
 }, 60000);
 
 describe("Native", () => {
-  // test("It Should be able to re-sampler INT16ARRAY in a correct time", () => {
-  //   // TODO In fact fr the moment IMHO this is not a correct time, it took 4x time slower than buffer resampler
-  //   let int16ArrayReSampleStartTime = Date.now();
-  //   const resInt16 = fromIntArray(data);
-  //   let int16ArrayReSampleEndTime = Date.now();
-  //   expect(
-  //     int16ArrayReSampleEndTime - int16ArrayReSampleStartTime
-  //   ).toBeLessThan(10000); // ? No regression test, should not be > 10s
-  //   expect(resInt16.length).toEqual(270653648);
-  // }, 15000);
+  test("It Should be able to re-sampler INT16ARRAY in a correct time", () => {
+    // TODO In fact fr the moment IMHO this is not a correct time, it took 4x time slower than buffer resampler
+    let int16ArrayReSampleStartTime = Date.now();
+    const resInt16 = fromIntInt16Buffer(data);
+    let int16ArrayReSampleEndTime = Date.now();
+    expect(
+      int16ArrayReSampleEndTime - int16ArrayReSampleStartTime
+    ).toBeLessThan(10000); // ? No regression test, should not be > 10s
+    expect(resInt16.length).toEqual(270653648);
+  }, 15000);
   test("It Should be able to re-sampler BUFFER in a correct time", () => {
     let bufferReSampleStartTime = Date.now();
     const resBuffer = fromBuffer(data);
@@ -55,13 +55,13 @@ describe("Native", () => {
     expect(bufferReSampleEndTime - bufferReSampleStartTime).toBeLessThan(5000); // ? No regression test, should not be > 10s
     expect(resBuffer.length).toEqual(1082614592);
   }, 10000);
-  // test("It Should be able to re-sampler FILE in a correct time", () => {
-  //   let fileReSampleStartTime = Date.now();
-  //   fromFile(outputPathRaw);
-  //   let fileReSampleEndTime = Date.now();
-  //   expect(fileReSampleEndTime - fileReSampleStartTime).toBeLessThan(2500); // ? No regression test, should not be > 10s
-  //   expect(fs.existsSync(outputPathFile)).toBe(true);
-  // }, 10000);
+  test("It Should be able to re-sampler FILE in a correct time", () => {
+    let fileReSampleStartTime = Date.now();
+    fromFile(outputPathRaw);
+    let fileReSampleEndTime = Date.now();
+    expect(fileReSampleEndTime - fileReSampleStartTime).toBeLessThan(2500); // ? No regression test, should not be > 10s
+    expect(fs.existsSync(outputPathFile)).toBe(true);
+  }, 10000);
 });
 
 async function downloadFile(url: string, outputPath: string) {
@@ -86,12 +86,10 @@ async function downloadFile(url: string, outputPath: string) {
   }
 }
 
-function fromIntArray(data: Buffer) {
-  let dataInt16Array = new Int16Array(data.buffer);
-  console.log("NODE- dataInt16Array length", dataInt16Array.length);
+function fromIntInt16Buffer(data: Buffer) {
   console.time("int16ArrayReSample");
-  const resInt16 = reSampleInt16Array({
-    inputInt16Array: dataInt16Array,
+  const resInt16 = reSampleInt16Buffer({
+    inputInt16Array: data,
     argsAudioToReSample: {
       channels: 2,
       sampleRateInput: 44100,
@@ -105,7 +103,7 @@ function fromIntArray(data: Buffer) {
 
 function fromBuffer(data: Buffer) {
   console.log("NODE- Buffer length", data.length);
-  // console.time("bufferReSample");
+  console.time("bufferReSample");
   const resBuffer = reSampleBuffers({
     inputBuffer: data,
     argsAudioToReSample: {
@@ -114,24 +112,24 @@ function fromBuffer(data: Buffer) {
       sampleRateOutput: 16000,
     },
   });
-  // console.timeEnd("bufferReSample");
+  console.timeEnd("bufferReSample");
   fs.writeFileSync(outputBuffer, resBuffer);
   return resBuffer;
 }
 
-// function fromFile(inputRawPath: string) {
-//   console.time("fileResample");
-//   reSampleAudioFile({
-//     outputPath: outputPathFile,
-//     inputRawPath,
-//     argsAudioToReSample: {
-//       channels: 2,
-//       sampleRateInput: 44100,
-//       sampleRateOutput: 16000,
-//     },
-//   });
-//   console.timeEnd("fileResample");
-// }
+function fromFile(inputRawPath: string) {
+  console.time("fileResample");
+  reSampleAudioFile({
+    outputPath: outputPathFile,
+    inputRawPath,
+    argsAudioToReSample: {
+      channels: 2,
+      sampleRateInput: 44100,
+      sampleRateOutput: 16000,
+    },
+  });
+  console.timeEnd("fileResample");
+}
 
 async function runSoxCommand(inputFilePath: string, outputFilePath: string) {
   const command = `sox ${inputFilePath} -e signed-integer -b 16 ${outputFilePath}`;

@@ -3,7 +3,7 @@ extern crate napi_derive;
 extern crate rubato;
 mod helpers;
 
-use log::debug;
+use log::{debug, error};
 use rubato::{implement_resampler, FastFixedIn, PolynomialDegree};
 
 use std::fs::File;
@@ -18,7 +18,7 @@ use napi_derive::napi;
 static LOGGER_INITIALIZED: std::sync::Once = std::sync::Once::new();
 
 use crate::helpers::{
-  append_frames, buffer_i16_to_vecs, i16_vec_to_vecs, skip_frames, write_frames_to_disk,
+  append_frames, buffer_to_vecs, i16_buffer_to_vecs, skip_frames, write_frames_to_disk,
 };
 
 implement_resampler!(SliceResampler, &[&[T]], &mut [Vec<T>]);
@@ -40,43 +40,40 @@ pub struct ArgsAudioFile {
   pub output_path: String,
 }
 
-// #[napi]
-// pub fn re_sample_audio_file(args: ArgsAudioFile) {
-//   // call the buffer resampler fn here + write to file
-//   let ArgsAudioFile {
-//     input_raw_path,
-//     output_path,
-//     args_audio_to_re_sample,
-//   } = args;
-//   let ArgsAudioToReSample {
-//     channels,
-//     sample_rate_input,
-//     sample_rate_output,
-//   } = args_audio_to_re_sample;
-//   initialize_logger();
-//   let file_in_disk = File::open(input_raw_path).expect("Can't open file");
-//   let mut file_in_reader = BufReader::new(file_in_disk);
-//   debug!("Data inside buffer {}", file_in_reader.capacity());
+#[napi]
+pub fn re_sample_audio_file(args: ArgsAudioFile) {
+  // call the buffer resampler fn here + write to file
+  let ArgsAudioFile {
+    input_raw_path,
+    output_path,
+    args_audio_to_re_sample,
+  } = args;
+  let ArgsAudioToReSample {
+    channels,
+    sample_rate_input,
+    sample_rate_output,
+  } = args_audio_to_re_sample;
+  initialize_logger();
+  let file_in_disk = File::open(input_raw_path).expect("Can't open file");
+  let mut file_in_reader = BufReader::new(file_in_disk);
 
-//   let indata = buffer_i16_to_vecs(&mut file_in_reader, 2);
-//   debug!("re_sample_audio_file indata lenght {}", indata.len());
+  let indata = buffer_to_vecs(&mut file_in_reader, 2);
 
-//   //re_sample_audio_buffer
-//   let start = Instant::now();
-//   let res = re_sample_audio_buffer(
-//     indata,
-//     sample_rate_input,
-//     sample_rate_output,
-//     channels,
-//     channels,
-//   );
-//   debug!("Time to convert the file is {:?}", start.elapsed());
+  let start = Instant::now();
+  let res = re_sample_audio_buffer(
+    indata,
+    sample_rate_input,
+    sample_rate_output,
+    channels,
+    channels,
+  );
+  debug!("Time to convert the file is {:?}", start.elapsed());
 
-//   let mut result: Vec<u8> = Vec::new();
-//   result.extend(res.iter().flat_map(|&f| f.to_le_bytes()));
-//   write_frames_to_disk(result, output_path);
-//   JsUndefined::value_type();
-// }
+  let mut result: Vec<u8> = Vec::new();
+  result.extend(res.iter().flat_map(|&f| f.to_le_bytes()));
+  write_frames_to_disk(result, output_path);
+  JsUndefined::value_type();
+}
 #[napi(object)]
 pub struct ArgsAudioBuffer {
   pub args_audio_to_re_sample: ArgsAudioToReSample,
@@ -84,7 +81,7 @@ pub struct ArgsAudioBuffer {
 }
 
 #[napi]
-pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Int16Array {
+pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
   let ArgsAudioBuffer {
     args_audio_to_re_sample,
     input_buffer,
@@ -101,7 +98,7 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Int16Array {
     &input_buffer.len()
   );
   let mut read_buffer = Box::new(Cursor::new(&input_buffer));
-  let data = buffer_i16_to_vecs(&mut read_buffer, channels as usize);
+  let data = buffer_to_vecs(&mut read_buffer, channels as usize);
   debug!("After buffer_i16_to_vecs length is {}", &data[0].len());
   debug!(
     "It took {:?} to convert {} buffer elements vec to vec<vec<f64>> with [0] contains {} and [1] {}",
@@ -119,18 +116,19 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Int16Array {
     channels,
   );
 
-  let vec_i16: Vec<i16> = output_data.iter().map(|&f| f as i16).collect();
-  Int16Array::new(vec_i16)
+  let mut result: Vec<u8> = Vec::new();
+  result.extend(output_data.iter().flat_map(|&f| f.to_le_bytes()));
+  result.into()
 }
 
 #[napi(object)]
 pub struct ArgsAudioInt16Array {
   pub args_audio_to_re_sample: ArgsAudioToReSample,
-  pub input_int16_array: Int16Array,
+  pub input_int16_array: Buffer,
 }
 
 #[napi]
-pub fn re_sample_int_16_array(args: ArgsAudioInt16Array) -> Int16Array {
+pub fn re_sample_int_16_buffer(args: ArgsAudioInt16Array) -> Buffer {
   let ArgsAudioInt16Array {
     args_audio_to_re_sample,
     input_int16_array,
@@ -143,7 +141,8 @@ pub fn re_sample_int_16_array(args: ArgsAudioInt16Array) -> Int16Array {
   } = args_audio_to_re_sample;
   initialize_logger();
   let convert_i16_time = Instant::now();
-  let i16_data = i16_vec_to_vecs(&input_int16_array, 2);
+  let mut read_buffer = Box::new(Cursor::new(&input_int16_array));
+  let i16_data = i16_buffer_to_vecs(&mut read_buffer, 2);
   debug!(
     "It took {:?} to convert {} i16 elements vec to vec<vec<f64>> with [0] contains {} and [1] {}",
     convert_i16_time.elapsed(),
@@ -161,24 +160,27 @@ pub fn re_sample_int_16_array(args: ArgsAudioInt16Array) -> Int16Array {
   );
 
   let convert_i16_back_time = Instant::now();
+  let mut buffer: Vec<u8> = Vec::with_capacity(output_data.len() * 2);
 
-  let i16_ouput: Vec<i16> = output_data
-    .iter()
-    .map(|&f64_value| {
-      // ? hack to be faster
-      let test = f64_value.clamp(i16::MIN as f64, i16::MAX as f64) as i16;
-      // let i64_value = f64_value.to_bits() as i64;
-      // i64_value.clamp(i16::MIN as i64, i16::MAX as i64) as i16
-      test
-    })
-    .collect();
+  for f64_value in output_data {
+    let clamped = if f64_value >= i16::MIN as f64 && f64_value <= i16::MAX as f64 {
+      f64_value as i16
+    } else if f64_value < i16::MIN as f64 {
+      i16::MIN
+    } else {
+      i16::MAX
+    };
 
+    // Split the data into two bytes of u8 for i16
+    buffer.push((clamped >> 8) as u8);
+    buffer.push((clamped & 0xFF) as u8);
+  }
   debug!(
-    "It took {:?} to convert i16 vec to vec<vec<f64>>",
+    "It took {:?} to convert back vec<vec<f64>> to buffer of i16 ",
     convert_i16_back_time.elapsed()
   );
 
-  Int16Array::new(i16_ouput)
+  buffer.into()
 }
 
 /**

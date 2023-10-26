@@ -1,10 +1,9 @@
 use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use log::{debug, error};
-use napi::bindgen_prelude::Buffer;
+use log::error;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::prelude::Read;
-use std::io::{BufWriter, Seek, Write};
+use std::io::{BufWriter, Write};
 
 const BYTE_PER_SAMPLE: usize = 8;
 /**
@@ -38,13 +37,13 @@ const BYTE_PER_SAMPLE: usize = 8;
  // You can now process the resulting audio data.
  ```
 */
-pub fn buffer_to_vecs<R: Read>(input_buffer: &mut R, channels: usize) -> Vec<Vec<f64>> {
+pub fn buffer_to_vecs<R: Read>(input_reader: &mut R, channels: usize) -> Vec<Vec<f64>> {
   let mut buffer = vec![0u8; BYTE_PER_SAMPLE];
   let mut audio_data = vec![Vec::new(); channels];
   'conversion_loop: loop {
     // dispatch the data between channels
     for audio_single_channel in audio_data.iter_mut() {
-      let bytes_read = input_buffer.read(&mut buffer).unwrap();
+      let bytes_read = input_reader.read(&mut buffer).unwrap();
       if bytes_read == 0 {
         break 'conversion_loop;
       }
@@ -258,33 +257,40 @@ mod tests {
 
   #[test]
   fn test_i16_vec_to_vecs_stereo() {
-    // Créez un exemple de données d'entrée
-    let input_data: Vec<i16> = vec![123, 456, 789, -321, 654, -987];
+    let i16_values: Vec<i16> = vec![123, 456, 789, -321, 654, -987];
+    let u8_values: &[u8] = unsafe {
+      std::slice::from_raw_parts(
+        i16_values.as_ptr() as *const u8,
+        i16_values.len() * std::mem::size_of::<i16>(),
+      )
+    };
+
+    let mut reader_data = Cursor::new(u8_values);
     let channels = 2;
 
-    // Appelez la fonction pour obtenir le résultat
-    let result = i16_buffer_to_vecs(&input_data, channels);
+    let result = i16_buffer_to_vecs(&mut reader_data, channels);
 
-    // Vérifiez que le résultat a le nombre attendu de canaux
     assert_eq!(result.len(), channels);
 
-    // Vérifiez le contenu du résultat
     assert_eq!(result[0], vec![123.0, 789.0, 654.0]);
     assert_eq!(result[1], vec![456.0, -321.0, -987.0]);
   }
   #[test]
   fn test_i16_vec_to_vecs_mono() {
-    // Créez un exemple de données d'entrée
-    let input_data: Vec<i16> = vec![123, 456, 789, -321, 654, -987];
+    let i16_values: Vec<i16> = vec![123, 456, 789, -321, 654, -987];
+    let u8_values: &[u8] = unsafe {
+      std::slice::from_raw_parts(
+        i16_values.as_ptr() as *const u8,
+        i16_values.len() * std::mem::size_of::<i16>(),
+      )
+    };
+    let mut reader_data = Cursor::new(u8_values);
     let channels = 1;
 
-    // Appelez la fonction pour obtenir le résultat
-    let result = i16_buffer_to_vecs(&input_data, channels);
+    let result = i16_buffer_to_vecs(&mut reader_data, channels);
 
-    // Vérifiez que le résultat a le nombre attendu de canaux
     assert_eq!(result.len(), channels);
 
-    // Vérifiez le contenu du résultat
     assert_eq!(result[0], vec![123.0, 456.0, 789.0, -321.0, 654.0, -987.0]);
   }
 
@@ -301,16 +307,8 @@ mod tests {
     let result = buffer_to_vecs(&mut input_buffer, channels);
     // mono so all inside same deep vec
     let expected_result: Vec<Vec<f64>> = vec![vec![
-      i16::from_le_bytes([1, 2]).into(),
-      i16::from_le_bytes([3, 4]).into(),
-      i16::from_le_bytes([5, 6]).into(),
-      i16::from_le_bytes([7, 8]).into(),
-      i16::from_le_bytes([9, 10]).into(),
-      i16::from_le_bytes([11, 12]).into(),
-      i16::from_le_bytes([13, 14]).into(),
-      i16::from_le_bytes([15, 16]).into(),
-      // f64::from_le_bytes([1, 2, 3, 4, 5, 6, 7, 8]),
-      // f64::from_le_bytes([9, 10, 11, 12, 13, 14, 15, 16]),
+      f64::from_le_bytes([1, 2, 3, 4, 5, 6, 7, 8]),
+      f64::from_le_bytes([9, 10, 11, 12, 13, 14, 15, 16]),
     ]];
     assert_eq!(result, expected_result);
   }
@@ -402,7 +400,7 @@ mod tests {
     assert_eq!(audio_buffers[0], vec![1.0, 2.0, 5.0]);
     assert_eq!(audio_buffers[1], vec![3.0, 4.0, 7.0]);
   }
-  use std::fs;
+  use std::{fs, io::Cursor};
   use tempfile::tempdir;
   #[test]
   fn test_write_frames_to_disk() {

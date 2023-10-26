@@ -16,13 +16,14 @@ export interface ArgsAudioFile {
   inputRawPath: string
   outputPath: string
 }
+export function reSampleAudioFile(args: ArgsAudioFile): void
 export interface ArgsAudioBuffer {
   argsAudioToReSample: ArgsAudioToReSample
   inputBuffer: Buffer
 }
-export function reSampleBuffers(args: ArgsAudioBuffer): Int16Array
+export function reSampleBuffers(args: ArgsAudioBuffer): Buffer
 export interface ArgsAudioInt16Array {
   argsAudioToReSample: ArgsAudioToReSample
-  inputInt16Array: Int16Array
+  inputInt16Array: Buffer
 }
-export function reSampleInt16Array(args: ArgsAudioInt16Array): Int16Array
+export function reSampleInt16Buffer(args: ArgsAudioInt16Array): Buffer

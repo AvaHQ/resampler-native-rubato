@@ -252,7 +252,8 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { reSampleBuffers, reSampleInt16Array } = nativeBinding
+const { reSampleAudioFile, reSampleBuffers, reSampleInt16Buffer } = nativeBinding
 
+module.exports.reSampleAudioFile = reSampleAudioFile
 module.exports.reSampleBuffers = reSampleBuffers
-module.exports.reSampleInt16Array = reSampleInt16Array
+module.exports.reSampleInt16Buffer = reSampleInt16Buffer
