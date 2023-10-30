@@ -13,6 +13,7 @@ log = "0.4.20"
 # Default enable napi4 feature, see https://nodejs.org/api/n-api.html#node-api-version-matrix
 napi = { version = "2.12.2", default-features = false, features = ["napi4"] }
 napi-derive = "2.12.2"
+num-traits = "0.2.17"
 rubato = "0.14.1"
 tempfile = "3.8.0"
 
