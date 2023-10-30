@@ -9,9 +9,6 @@ use std::fs::File;
 use std::io::prelude::Read;
 use std::io::{BufWriter, Write};
 
-const BYTE_PER_SAMPLE: usize = 4;
-static LOGGER_INITIALIZED: std::sync::Once = std::sync::Once::new();
-
 /**
  Reads data from a Read trait and converts it into a vector of vectors containing 64-bit floating-point numbers (f64).
 
@@ -33,18 +30,18 @@ static LOGGER_INITIALIZED: std::sync::Once = std::sync::Once::new();
  ```
  use std::fs::File;
  use std::io::Read;
- use my_audio_library::buffer_to_vecs;
+ use my_audio_library::f32_buffer_to_vecs;
 
  let mut file = File::open("audio.bin").expect("Failed to open file");
  let channels = 2;
 
- let result = buffer_to_vecs(&mut file, channels);
+ let result = f32_buffer_to_vecs(&mut file, channels);
 
  // You can now process the resulting audio data.
  ```
 */
-pub fn buffer_to_vecs<R: Read>(input_reader: &mut R, channels: usize) -> Vec<Vec<f32>> {
-  let mut buffer = vec![0u8; BYTE_PER_SAMPLE];
+pub fn f32_buffer_to_vecs<R: Read>(input_reader: &mut R, channels: usize) -> Vec<Vec<f32>> {
+  let mut buffer = vec![0u8; 4]; // 4*8->32
   let mut audio_data = vec![Vec::new(); channels];
   'conversion_loop: loop {
     // dispatch the data between channels
@@ -116,7 +113,7 @@ pub fn i16_buffer_to_vecs<R: Read>(input_reader: &mut R, channels: usize) -> Vec
           // }
           audio_single_channel.push(value_f64);
         }
-        Err(err) => {
+        Err(_err) => {
           break 'outer; // end of loop err happen when oef for eg
         }
       }
@@ -320,7 +317,7 @@ mod tests {
   }
 
   /**
-   * ? buffer_to_vecs Unit Tests
+   * ? f32_buffer_to_vecs Unit Tests
    */
   #[test]
   fn test_buffer_to_vecs_single_channel() {
@@ -328,7 +325,7 @@ mod tests {
     let mut input_buffer = std::io::Cursor::new(data);
 
     let channels = 1;
-    let result = buffer_to_vecs(&mut input_buffer, channels);
+    let result = f32_buffer_to_vecs(&mut input_buffer, channels);
     // mono so all inside same deep vec
     let expected_result: Vec<Vec<f32>> = vec![vec![
       f32::from_le_bytes([1, 2, 3, 4]),
@@ -345,7 +342,7 @@ mod tests {
     let mut input_buffer = std::io::Cursor::new(data);
 
     let channels = 2;
-    let result = buffer_to_vecs(&mut input_buffer, channels);
+    let result = f32_buffer_to_vecs(&mut input_buffer, channels);
 
     // stereo so vec of vec for channels
     let expected_result: Vec<Vec<f32>> = vec![
@@ -367,7 +364,7 @@ mod tests {
     let mut input_buffer = std::io::Cursor::new(data);
 
     let channels = 1;
-    let result = buffer_to_vecs(&mut input_buffer, channels);
+    let result = f32_buffer_to_vecs(&mut input_buffer, channels);
 
     let expected_result: Vec<Vec<f32>> = vec![vec![]];
     assert_eq!(result, expected_result);

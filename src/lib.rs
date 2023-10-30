@@ -19,7 +19,7 @@ use napi::JsUndefined;
 use napi_derive::napi;
 
 use crate::helpers::{
-  append_frames, buffer_to_vecs, i16_buffer_to_vecs, skip_frames, write_frames_to_disk,
+  append_frames, f32_buffer_to_vecs, i16_buffer_to_vecs, skip_frames, write_frames_to_disk,
 };
 
 implement_resampler!(SliceResampler, &[&[T]], &mut [Vec<T>]);
@@ -41,20 +41,27 @@ pub struct ArgsAudioToReSample {
   pub channels: u8,
 }
 
+#[napi]
+pub enum DataType {
+  I16,
+  F32,
+}
+
 #[napi(object)]
 pub struct ArgsAudioFile {
   pub args_audio_to_re_sample: ArgsAudioToReSample,
   pub input_raw_path: String,
   pub output_path: String,
+  pub type_of_bin_data: DataType,
 }
 
 #[napi]
 pub fn re_sample_audio_file(args: ArgsAudioFile) {
-  // call the buffer resampler fn here + write to file
   let ArgsAudioFile {
     input_raw_path,
     output_path,
     args_audio_to_re_sample,
+    type_of_bin_data,
   } = args;
   let ArgsAudioToReSample {
     channels,
@@ -64,7 +71,11 @@ pub fn re_sample_audio_file(args: ArgsAudioFile) {
   let file_in_disk = File::open(input_raw_path).expect("Can't open file");
   let mut file_in_reader = BufReader::new(file_in_disk);
 
-  let indata = buffer_to_vecs(&mut file_in_reader, 2);
+  // Depending of sub-data-type we can use i16 or f32
+  let indata: Vec<Vec<f32>> = match type_of_bin_data {
+    DataType::I16 => f32_buffer_to_vecs(&mut file_in_reader, 2),
+    DataType::F32 => i16_buffer_to_vecs(&mut file_in_reader, 2),
+  };
 
   let start = Instant::now();
   let res = re_sample_audio_buffer(
@@ -74,11 +85,11 @@ pub fn re_sample_audio_file(args: ArgsAudioFile) {
     channels,
     channels,
   );
-  debug!("Time to convert the file is {:?}", start.elapsed());
 
   let mut result: Vec<u8> = Vec::new();
   result.extend(res.iter().flat_map(|&f| f.to_le_bytes()));
   write_frames_to_disk(result, output_path);
+  debug!("Time to convert the file was {:?}", start.elapsed());
   JsUndefined::value_type();
 }
 #[napi(object)]
@@ -104,7 +115,7 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
     &input_buffer.len()
   );
   let mut read_buffer = Box::new(Cursor::new(&input_buffer));
-  let data = buffer_to_vecs(&mut read_buffer, channels as usize);
+  let data = f32_buffer_to_vecs(&mut read_buffer, channels as usize);
   debug!("After buffer_i16_to_vecs length is {}", &data[0].len());
   debug!(
     "It took {:?} to convert {} buffer elements vec to vec<vec<f64>> with [0] contains {} and [1] {}",
