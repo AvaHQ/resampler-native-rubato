@@ -10,7 +10,7 @@ use std::io::prelude::Read;
 use std::io::{BufWriter, Write};
 
 /**
- Reads data from a Read trait and converts it into a vector of vectors containing 64-bit floating-point numbers (f64).
+ Reads data from a Read trait and converts it into a vector of vectors containing 32-bit floating-point numbers (f32).
 
  # Arguments
 
@@ -23,7 +23,7 @@ use std::io::{BufWriter, Write};
 
  # Returns
 
- Returns a vector of vectors, where each inner vector represents a channel of audio data as 64-bit floating-point numbers (f64).
+ Returns a vector of vectors, where each inner vector represents a channel of audio data as 32-bit floating-point numbers (f32).
 
  # Example
 
@@ -64,7 +64,7 @@ pub fn f32_buffer_to_vecs<R: Read>(input_reader: &mut R, channels: usize) -> Vec
 }
 
 /**
- Converts a vector of signed 16-bit integers (i16) into a vector of vectors containing 64-bit floating-point numbers (f64).
+ Converts a vector of signed 16-bit integers (i16) into a vector of vectors containing 32-bit floating-point numbers (f32).
 
  # Arguments
 
@@ -77,7 +77,7 @@ That is, for an example of 2 time steps, 2 channels, and (as always) 2 bytes per
 
  # Returns
 
- Returns a vector of vectors, where each inner vector represents a channel of audio data as 64-bit floating-point numbers (f64).
+ Returns a vector of vectors, where each inner vector represents a channel of audio data as 32-bit floating-point numbers (f32).
 
  # Example
 
@@ -106,12 +106,8 @@ pub fn i16_buffer_to_vecs<R: Read>(input_reader: &mut R, channels: usize) -> Vec
     for audio_single_channel in audio_data.iter_mut() {
       match input_reader.read_i16::<LittleEndian>() {
         Ok(value_i16) => {
-          // let bytes = value_i16.to_le_bytes();
-          let value_f64 = f32::from_i16(value_i16).unwrap() / f32::from_i16(i16::MAX).unwrap();
-          // if (value_i16 != 0) {
-          //   debug!("value_i16 {:?} value_f64 {:?}", value_i16, value_f64)
-          // }
-          audio_single_channel.push(value_f64);
+          let value_f32 = f32::from_i16(value_i16).unwrap() / f32::from_i16(i16::MAX).unwrap();
+          audio_single_channel.push(value_f32);
         }
         Err(_err) => {
           break 'outer; // end of loop err happen when oef for eg
@@ -132,14 +128,14 @@ pub fn i16_buffer_to_vecs<R: Read>(input_reader: &mut R, channels: usize) -> Vec
 
  # Returns
 
- Returns a `Result` where `Ok` contains a vector of collected audio data as `f64` values, and `Err` contains an error message if frames_to_skip + frames_to_write exceeds the length of the input frames for any channel.
+ Returns a `Result` where `Ok` contains a vector of collected audio data as `f32` values, and `Err` contains an error message if frames_to_skip + frames_to_write exceeds the length of the input frames for any channel.
 
  # Example
 
  ```
  use my_audio_library::skip_frames;
 
- let frames: Vec<Vec<f64>> = vec![
+ let frames: Vec<Vec<f32>> = vec![
      vec![1.0, 2.0, 3.0, 4.0],
      vec![5.0, 6.0, 7.0, 8.0],
  ];
@@ -174,8 +170,8 @@ pub fn skip_frames(
   }
   for frame_to_skip in frames_to_skip..end {
     for frame in frames.iter().take(channels) {
-      let value64 = frame[frame_to_skip];
-      collected_data.extend_from_slice(&[value64]);
+      let value32 = frame[frame_to_skip];
+      collected_data.extend_from_slice(&[value32]);
     }
   }
   Ok(collected_data)
@@ -195,8 +191,8 @@ pub fn skip_frames(
  ```
  use my_audio_library::append_frames;
 
- let mut audio_buffers: Vec<Vec<f64>> = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
- let additional_frames: Vec<Vec<f64>> = vec![vec![5.0, 6.0], vec![7.0, 8.0]];
+ let mut audio_buffers: Vec<Vec<f32>> = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
+ let additional_frames: Vec<Vec<f32>> = vec![vec![5.0, 6.0], vec![7.0, 8.0]];
  let num_frames_to_append = 1;
 
  append_frames(&mut audio_buffers, &additional_frames, num_frames_to_append);

@@ -118,7 +118,7 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
   let data = f32_buffer_to_vecs(&mut read_buffer, channels as usize);
   debug!("After buffer_i16_to_vecs length is {}", &data[0].len());
   debug!(
-    "It took {:?} to convert {} buffer elements vec to vec<vec<f64>> with [0] contains {} and [1] {}",
+    "It took {:?} to convert {} buffer elements vec to vec<vec<f32>> with [0] contains {} and [1] {}",
     buffer_conversion_time.elapsed(),
     input_buffer.len(),
     data[0].len(),
@@ -160,7 +160,7 @@ pub fn re_sample_int_16_buffer(args: ArgsAudioInt16Buffer) -> Buffer {
   let mut read_buffer = Box::new(Cursor::new(&input_int16_buffer));
   let i16_data = i16_buffer_to_vecs(&mut read_buffer, 2);
   debug!(
-    "It took {:?} to convert {} i16 elements vec to vec<vec<f64>> with [0] contains {} and [1] {}",
+    "It took {:?} to convert {} i16 elements vec to vec<vec<f32>> with [0] contains {} and [1] {}",
     convert_i16_time.elapsed(),
     input_int16_buffer.len(),
     i16_data[0].len(),
@@ -180,11 +180,11 @@ pub fn re_sample_int_16_buffer(args: ArgsAudioInt16Buffer) -> Buffer {
   // Issue is before this !
   let i16_ouput: Vec<i16> = output_data
     .iter()
-    .map(|&f64_value| i16::from_f32(f64_value * f32::from_i16(i16::MAX).unwrap()).unwrap())
+    .map(|&f32_value| i16::from_f32(f32_value * f32::from_i16(i16::MAX).unwrap()).unwrap())
     .collect();
 
   debug!(
-    "It took {:?} to convert i16 vec to vec<vec<f64>>",
+    "It took {:?} to convert i16 vec to vec<vec<f32>>",
     convert_i16_back_time.elapsed()
   );
 
