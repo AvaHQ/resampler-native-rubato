@@ -4,7 +4,7 @@ import {
   reSampleInt16Buffer,
   DataType,
 } from "../index.js";
-import fs, { writeFileSync } from "fs";
+import fs, { unlinkSync, writeFileSync } from "fs";
 import { readFile, writeFile } from "fs/promises";
 import axios from "axios";
 import { resolve } from "path";
@@ -14,25 +14,35 @@ import util from "util";
 const exec = util.promisify(ExecOld);
 const OUT_DIR = resolve(__dirname, `./output`);
 const OUT_DIR_FILE = (filename: string) => resolve(`${OUT_DIR}/${filename}`);
-// const OGG_URL =
+// const WAV_OR_OGG_URL =
+// "https://upload.wikimedia.org/wikipedia/commons/7/7e/Fiche_technique_Ficus_Benjamina.ogg"; // error End frames_to_skip + frames_to_write 2029572 is above the length of frames which are 2"
+const WAV_OR_OGG_URL =
+  "https://upload.wikimedia.org/wikipedia/commons/f/f7/%22Le_village_de_Mollon_dans_l%27Ain%22_prononcé_par_un_habitant_%28dans_la_rue%29.ogg"; // Error: the spitch change
+// const WAV_OR_OGG_URL =
 //   "https://upload.wikimedia.org/wikipedia/commons/f/fc/04_Faisle_Di_Ghadi_-_Paramjit_Maan.ogg";
-const OGG_URL =
-  "https://archive.org/download/Rpp-Episode16WavVersion/rpp16.wav";
-const OUTPUT_OGG = OUT_DIR_FILE("sample-talk.ogg");
+// const WAV_OR_OGG_URL =
+//   "https://archive.org/download/Rpp-Episode16WavVersion/rpp16.wav";
+const BASE_AUDIO_NAME = "sample-talk.ogg";
+const BASE_AUDIO_FILE = OUT_DIR_FILE(BASE_AUDIO_NAME);
 const BASE_RAW_I16 = OUT_DIR_FILE("sample-talk-int16.raw");
 const BASE_RAW_F32 = OUT_DIR_FILE("sample-talk-f32.raw");
 
 beforeAll(async () => {
   try {
-    await downloadFile(OGG_URL, OUTPUT_OGG);
+    await cleanOutputFolder("start");
+    await downloadFile(WAV_OR_OGG_URL, BASE_AUDIO_FILE);
     console.log("Finished downloaded file ..");
-    await runSoxCommand(OUTPUT_OGG, BASE_RAW_I16);
-    await runSoxCommand(OUTPUT_OGG, BASE_RAW_F32);
+    await runSoxCommand(BASE_AUDIO_FILE, BASE_RAW_I16);
+    await runSoxCommand(BASE_AUDIO_FILE, BASE_RAW_F32);
     console.log("Finished converting file to raw .. starting tests");
   } catch (error) {
     console.error(`error : ${error}`);
   }
 }, 60000); // long timeout because could need to download a 50mb file
+
+afterAll(async () => {
+  await cleanOutputFolder("end");
+});
 
 /**
  * ? Those tests work with a 50.1MB OGG file, 30mn of audio talk of a woman, corresponding of ~1GB of raw f32 data or ~370MB i16
@@ -48,7 +58,7 @@ describe("NAPI -  Rubato Module", () => {
       argsAudioToReSample: {
         channels: 2,
         sampleRateInput: 44100,
-        sampleRateOutput: 16000,
+        sampleRateOutput: 44100,
       },
     });
     console.timeEnd("int16ArrayReSample");
@@ -64,7 +74,7 @@ describe("NAPI -  Rubato Module", () => {
       ".wav"
     );
     await exec(
-      `sox  -e signed-integer -b 16 -r 16000 -c 2 ${reSampleBufferInt16Path} -e signed-integer -b 16 ${reSampleBufferInt16PathWav}`
+      `sox  -e signed-integer -b 16 -r 44100 -c 2 ${reSampleBufferInt16Path} -e signed-integer -b 16 ${reSampleBufferInt16PathWav}`
     );
   }, 15000);
 
@@ -121,7 +131,7 @@ describe("NAPI -  Rubato Module", () => {
     );
   }, 10000);
 
-  test.only("Should re-sample via File path (i16) in an acceptable time", async () => {
+  test("Should re-sample via File path (i16) in an acceptable time", async () => {
     let fileReSampleStartTime = Date.now();
     console.time("fileResample");
     const resampleI16PathFile = OUT_DIR_FILE("file-i16.raw");
@@ -196,4 +206,20 @@ async function runSoxCommand(inputFilePath: string, outputFilePath: string) {
   }
 
   console.log(`Sox conversion to raw file in ${size} done`);
+}
+
+// When tests start we keep only the downloaded file, when tests finished  we remove all raw and keep final .wav to be able to listen to them
+async function cleanOutputFolder(type: "start" | "end") {
+  fs.readdirSync(OUT_DIR).forEach((filename) => {
+    let shouldKeepThisFile =
+      type === "end"
+        ? filename.includes(".wav") || filename === BASE_AUDIO_NAME
+        : filename === BASE_AUDIO_NAME;
+    console.log("BASE_AUDIO_NAME", BASE_AUDIO_NAME, shouldKeepThisFile);
+    if (shouldKeepThisFile) {
+      return;
+    }
+    let filePath = OUT_DIR_FILE(filename);
+    unlinkSync(filePath);
+  });
 }
