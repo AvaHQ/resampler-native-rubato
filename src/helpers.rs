@@ -362,10 +362,14 @@ mod tests {
 
     // stereo so vec of vec for channels
     let expected_result: Vec<Vec<f32>> = vec![
-      vec![f32::from_le_bytes([1, 2, 3, 4])],
-      vec![f32::from_le_bytes([5, 6, 7, 8])],
-      vec![f32::from_le_bytes([9, 10, 11, 12])],
-      vec![f32::from_le_bytes([13, 14, 15, 16])],
+      vec![
+        f32::from_le_bytes([1, 2, 3, 4]),
+        f32::from_le_bytes([9, 10, 11, 12]),
+      ],
+      vec![
+        f32::from_le_bytes([5, 6, 7, 8]),
+        f32::from_le_bytes([13, 14, 15, 16]),
+      ],
     ];
     assert_eq!(result, expected_result);
   }
