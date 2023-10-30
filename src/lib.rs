@@ -5,13 +5,12 @@ extern crate rubato;
 
 mod helpers;
 
-use byteorder::{LittleEndian, WriteBytesExt};
-use log::{debug, error};
+use log::debug;
 use num_traits::FromPrimitive;
 use rubato::{implement_resampler, FastFixedIn, PolynomialDegree};
 
-use std::fs::{write, File};
-use std::io::{BufReader, BufWriter, Cursor, Write};
+use std::fs::File;
+use std::io::{BufReader, Cursor};
 use std::time::Instant;
 use std::vec;
 
@@ -125,16 +124,16 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
 }
 
 #[napi(object)]
-pub struct ArgsAudioInt16Array {
+pub struct ArgsAudioInt16Buffer {
   pub args_audio_to_re_sample: ArgsAudioToReSample,
-  pub input_int16_array: Buffer,
+  pub input_int16_buffer: Buffer,
 }
 
 #[napi]
-pub fn re_sample_int_16_buffer(args: ArgsAudioInt16Array) -> Buffer {
-  let ArgsAudioInt16Array {
+pub fn re_sample_int_16_buffer(args: ArgsAudioInt16Buffer) -> Buffer {
+  let ArgsAudioInt16Buffer {
     args_audio_to_re_sample,
-    input_int16_array,
+    input_int16_buffer,
   } = args;
 
   let ArgsAudioToReSample {
@@ -144,42 +143,15 @@ pub fn re_sample_int_16_buffer(args: ArgsAudioInt16Array) -> Buffer {
   } = args_audio_to_re_sample;
   initialize_logger();
   let convert_i16_time = Instant::now();
-  let mut read_buffer = Box::new(Cursor::new(&input_int16_array));
-  let i16_data = i16_buffer_to_vecs(&mut read_buffer, 2); // deja pas bon
+  let mut read_buffer = Box::new(Cursor::new(&input_int16_buffer));
+  let i16_data = i16_buffer_to_vecs(&mut read_buffer, 2);
   debug!(
     "It took {:?} to convert {} i16 elements vec to vec<vec<f64>> with [0] contains {} and [1] {}",
     convert_i16_time.elapsed(),
-    input_int16_array.len(),
+    input_int16_buffer.len(),
     i16_data[0].len(),
     i16_data[1].len()
   );
-
-  let output_path = "/Users/dieudonn/Dev/talk-re.raw";
-  // let mut file = File::create(output_path).unwrap();
-
-  // let _ = file.write_all(&input_int16_array); // working! just the first data
-  let num_channels = i16_data.len();
-  debug!("NB of channel {}", num_channels);
-  let num_samples = i16_data[0].len(); // Assuming all channels have the same number of samples
-  debug!("NB of samples {}", num_samples);
-
-  // for sample_index in 0..num_samples {
-  //   for channel_index in 0..num_channels {
-  //     let value = i16_data[channel_index][sample_index];
-  //     let bytes = value.to_le_bytes();
-  //     let _ = writer.write_all(&bytes).unwrap();
-  //   }
-  // }
-
-  // writer.flush().unwrap();
-  // for channel_data in &i16_data {
-  //   let channel_bytes: Vec<u8> = channel_data
-  //     .iter()
-  //     .flat_map(|&sample| sample.to_le_bytes().to_vec())
-  //     .collect();
-  //   let _ = file.write_all(&channel_bytes);
-  // }
-  // // write_frames_to_disk(result, output_path.to_string());
 
   let output_data = re_sample_audio_buffer(
     i16_data,
@@ -194,44 +166,16 @@ pub fn re_sample_int_16_buffer(args: ArgsAudioInt16Array) -> Buffer {
   // Issue is before this !
   let i16_ouput: Vec<i16> = output_data
     .iter()
-    .map(|&f64_value| {
-      let i16_data = i16::from_f32(f64_value * f32::from_i16(i16::MAX).unwrap()).unwrap();
-      // if i16_data != 0 {
-      //   debug!("BACK for RE f64_value {}  i16_data {}", f64_value, i16_data)
-      // }
-      i16_data
-    })
+    .map(|&f64_value| i16::from_f32(f64_value * f32::from_i16(i16::MAX).unwrap()).unwrap())
     .collect();
-
-  // let channel_bytes: Vec<u8> = i16_ouput
-  //   .iter()
-  //   .flat_map(|&sample| sample.to_le_bytes().to_vec())
-  //   .collect();
-  // let _ = writer.write_all(&channel_bytes).unwrap();
-  // writer.flush();
 
   debug!(
     "It took {:?} to convert i16 vec to vec<vec<f64>>",
     convert_i16_back_time.elapsed()
   );
 
-  // Int16Array::new(i16_ouput)
-
-  // let mut buffer: Vec<u8> = Vec::with_capacity(output_data.len() * 2);
   let mut buffer: Vec<u8> = Vec::new();
   buffer.extend(i16_ouput.iter().flat_map(|&f| f.to_le_bytes()));
-  // for data in i16_ouput {
-  //   let hi: u8 = (data >> 8) as u8;
-  //   let lo: u8 = (data & 0xFF) as u8;
-  //   buffer.push(hi);
-  //   buffer.push(lo);
-  // }
-  // debug!(
-  //   "It took {:?} to convert back vec<vec<f64>> to buffer of i16 ",
-  //   convert_i16_back_time.elapsed()
-  // );
-
-  // let _ = write("/Users/dieudonn/Dev/test.raw", &buffer);
 
   buffer.into()
 }
@@ -240,7 +184,6 @@ pub fn re_sample_int_16_buffer(args: ArgsAudioInt16Array) -> Buffer {
  * This is the Rust main smart ,function, use all pure function inside
  * Main logic is here
  */
-
 fn re_sample_audio_buffer(
   buffer: Vec<Vec<f32>>,
   input_sample_rate: u16,
@@ -248,8 +191,6 @@ fn re_sample_audio_buffer(
   input_channels: u8,
   output_channels: u8,
 ) -> Vec<f32> {
-  debug!("buffer size {}", buffer.len());
-
   let fs_in = input_sample_rate as usize;
   let channels = input_channels as usize;
   let nbr_input_frames = buffer[0].len(); // ? because for stereo

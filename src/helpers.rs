@@ -1,8 +1,8 @@
 extern crate env_logger;
 extern crate num_traits;
 
-use byteorder::{LittleEndian, ReadBytesExt, WriteBytesExt};
-use log::{debug, error};
+use byteorder::{LittleEndian, ReadBytesExt};
+use log::error;
 use num_traits::FromPrimitive;
 use std::convert::TryInto;
 use std::fs::File;
