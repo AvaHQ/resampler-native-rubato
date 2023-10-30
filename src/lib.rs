@@ -55,6 +55,11 @@ pub struct ArgsAudioFile {
   pub type_of_bin_data: DataType,
 }
 
+enum DataTypeRust {
+  I16(i16),
+  F32(f32),
+}
+
 #[napi]
 pub fn re_sample_audio_file(args: ArgsAudioFile) {
   let ArgsAudioFile {
@@ -73,12 +78,12 @@ pub fn re_sample_audio_file(args: ArgsAudioFile) {
 
   // Depending of sub-data-type we can use i16 or f32
   let indata: Vec<Vec<f32>> = match type_of_bin_data {
-    DataType::I16 => f32_buffer_to_vecs(&mut file_in_reader, 2),
-    DataType::F32 => i16_buffer_to_vecs(&mut file_in_reader, 2),
+    DataType::I16 => i16_buffer_to_vecs(&mut file_in_reader, 2),
+    DataType::F32 => f32_buffer_to_vecs(&mut file_in_reader, 2),
   };
 
   let start = Instant::now();
-  let res = re_sample_audio_buffer(
+  let re_sampled_f32_data = re_sample_audio_buffer(
     indata,
     sample_rate_input,
     sample_rate_output,
@@ -86,9 +91,19 @@ pub fn re_sample_audio_file(args: ArgsAudioFile) {
     channels,
   );
 
-  let mut result: Vec<u8> = Vec::new();
-  result.extend(res.iter().flat_map(|&f| f.to_le_bytes()));
-  write_frames_to_disk(result, output_path);
+  let resample_final_data: Vec<u8> = match type_of_bin_data {
+    DataType::I16 => re_sampled_f32_data
+      .iter()
+      .filter_map(|&f32_value| i16::from_f32(f32_value * f32::from_i16(i16::MAX).unwrap())) // if datatype on entry file was int16 we need to retransform to it
+      .flat_map(|i| i.to_le_bytes())
+      .collect(),
+    DataType::F32 => re_sampled_f32_data
+      .iter()
+      .flat_map(|&f| f.to_le_bytes())
+      .collect(),
+  };
+
+  write_frames_to_disk(resample_final_data, output_path);
   debug!("Time to convert the file was {:?}", start.elapsed());
   JsUndefined::value_type();
 }
@@ -116,7 +131,7 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
   );
   let mut read_buffer = Box::new(Cursor::new(&input_buffer));
   let data = f32_buffer_to_vecs(&mut read_buffer, channels as usize);
-  debug!("After buffer_i16_to_vecs length is {}", &data[0].len());
+  debug!("After f32_buffer_to_vecs length is {}", &data[0].len());
   debug!(
     "It took {:?} to convert {} buffer elements vec to vec<vec<f32>> with [0] contains {} and [1] {}",
     buffer_conversion_time.elapsed(),
@@ -180,12 +195,13 @@ pub fn re_sample_int_16_buffer(args: ArgsAudioInt16Buffer) -> Buffer {
   // Issue is before this !
   let i16_ouput: Vec<i16> = output_data
     .iter()
-    .map(|&f32_value| i16::from_f32(f32_value * f32::from_i16(i16::MAX).unwrap()).unwrap())
+    .filter_map(|&f32_value| i16::from_f32(f32_value * f32::from_i16(i16::MAX).unwrap()))
     .collect();
 
   debug!(
-    "It took {:?} to convert i16 vec to vec<vec<f32>>",
-    convert_i16_back_time.elapsed()
+    "It took {:?} to convert i16 vec {:?} elements to vec<vec<f32>>",
+    convert_i16_back_time.elapsed(),
+    i16_ouput.len()
   );
 
   let mut buffer: Vec<u8> = Vec::new();

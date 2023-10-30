@@ -9,7 +9,7 @@ const res = reSampleInt16Buffer({
     sampleRateInput: 44100,
     sampleRateOutput: 16000,
   },
-  inputInt16Array: data,
+  inputInt16Buffer: data,
 });
 
 console.log("res", res.length);

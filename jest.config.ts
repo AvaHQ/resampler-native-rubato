@@ -6,5 +6,6 @@ export default async (): Promise<Config> => {
     preset: "ts-jest",
     testEnvironment: "node",
     moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],
+    testRegex: ".spec.ts",
   };
 };
