@@ -263,15 +263,6 @@ pub fn write_frames_to_disk(frames: Vec<u8>, output: String) {
   }
 }
 
-/**
- * Singleton of logger because it cannot be instanciated more than once
- */
-pub fn initialize_logger() {
-  LOGGER_INITIALIZED.call_once(|| {
-    env_logger::init();
-  });
-}
-
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -281,7 +272,6 @@ mod tests {
    */
   #[test]
   fn test_i16_vec_to_vecs_stereo() {
-    initialize_logger();
     let i16_values: Vec<i16> = vec![123, 456, 789, -321, 654, -987];
     let u8_values: &[u8] = unsafe {
       std::slice::from_raw_parts(
@@ -302,7 +292,6 @@ mod tests {
   }
   #[test]
   fn test_i16_vec_to_vecs_mono() {
-    initialize_logger();
     let i16_values: Vec<i16> = vec![123, 456, 789, -321, 654, -987];
     let u8_values: &[u8] = unsafe {
       std::slice::from_raw_parts(
@@ -335,7 +324,6 @@ mod tests {
    */
   #[test]
   fn test_buffer_to_vecs_single_channel() {
-    initialize_logger();
     let data: &[u8] = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     let mut input_buffer = std::io::Cursor::new(data);
 
@@ -353,7 +341,6 @@ mod tests {
 
   #[test]
   fn test_buffer_to_vecs_multiple_channels() {
-    initialize_logger();
     let data: &[u8] = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     let mut input_buffer = std::io::Cursor::new(data);
 
@@ -376,7 +363,6 @@ mod tests {
 
   #[test]
   fn test_buffer_to_vecs_empty_input() {
-    initialize_logger();
     let data: &[u8] = &[];
     let mut input_buffer = std::io::Cursor::new(data);
 
@@ -392,7 +378,6 @@ mod tests {
    */
   #[test]
   fn test_skip_frames_should_return_an_error() {
-    initialize_logger();
     // because will be out of range of clusion
     let frames: Vec<Vec<f32>> = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
     let frames_to_skip = 4;
@@ -407,7 +392,6 @@ mod tests {
 
   #[test]
   fn test_skip_frames_no_frames_to_write() {
-    initialize_logger();
     let frames: Vec<Vec<f32>> = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
     let frames_to_skip = 1;
     let frames_to_write = 0;
@@ -421,7 +405,6 @@ mod tests {
 
   #[test]
   fn test_skip_frames_skip_all_frames() {
-    initialize_logger();
     let frames: Vec<Vec<f32>> = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
     let frames_to_skip = 3;
     let frames_to_write = 0;
@@ -438,7 +421,6 @@ mod tests {
    */
   #[test]
   fn test_append_frames() {
-    initialize_logger();
     let mut audio_buffers: Vec<Vec<f32>> = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
     let additional_frames: Vec<Vec<f32>> = vec![vec![5.0, 6.0], vec![7.0, 8.0]];
     let num_frames_to_append = 1;
@@ -452,7 +434,6 @@ mod tests {
   use tempfile::tempdir;
   #[test]
   fn test_write_frames_to_disk() {
-    initialize_logger();
     let temp_dir = tempdir().expect("Failed to create temporary directory");
     let output_file = temp_dir.path().join("output.bin");
     let output_path = output_file.to_str().expect("Invalid path").to_string();

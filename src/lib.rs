@@ -19,11 +19,17 @@ use napi::JsUndefined;
 use napi_derive::napi;
 
 use crate::helpers::{
-  append_frames, buffer_to_vecs, i16_buffer_to_vecs, initialize_logger, skip_frames,
-  write_frames_to_disk,
+  append_frames, buffer_to_vecs, i16_buffer_to_vecs, skip_frames, write_frames_to_disk,
 };
 
 implement_resampler!(SliceResampler, &[&[T]], &mut [Vec<T>]);
+
+use napi::module_init;
+
+#[module_init]
+fn init() {
+  env_logger::init();
+}
 
 /**
  * N-API.RS exported functions via macro
@@ -55,7 +61,6 @@ pub fn re_sample_audio_file(args: ArgsAudioFile) {
     sample_rate_input,
     sample_rate_output,
   } = args_audio_to_re_sample;
-  initialize_logger();
   let file_in_disk = File::open(input_raw_path).expect("Can't open file");
   let mut file_in_reader = BufReader::new(file_in_disk);
 
@@ -93,7 +98,6 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
     sample_rate_input,
     sample_rate_output,
   } = args_audio_to_re_sample;
-  initialize_logger();
   let buffer_conversion_time = Instant::now();
   debug!(
     "Before buffer_i16_to_vecs length is {}",
@@ -141,7 +145,6 @@ pub fn re_sample_int_16_buffer(args: ArgsAudioInt16Buffer) -> Buffer {
     sample_rate_input,
     sample_rate_output,
   } = args_audio_to_re_sample;
-  initialize_logger();
   let convert_i16_time = Instant::now();
   let mut read_buffer = Box::new(Cursor::new(&input_int16_buffer));
   let i16_data = i16_buffer_to_vecs(&mut read_buffer, 2);
