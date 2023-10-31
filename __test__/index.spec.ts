@@ -1,10 +1,5 @@
-import {
-  reSampleBuffers,
-  reSampleAudioFile,
-  reSampleInt16Buffer,
-  DataType,
-} from "../index.js";
-import fs, { unlinkSync, writeFileSync } from "fs";
+import { reSampleBuffers, reSampleInt16Buffer, DataType } from "../index.js";
+import fs, { unlinkSync } from "fs";
 import { readFile, writeFile } from "fs/promises";
 import axios from "axios";
 import { resolve } from "path";
@@ -14,14 +9,86 @@ import util from "util";
 const exec = util.promisify(ExecOld);
 const OUT_DIR = resolve(__dirname, `./output`);
 const OUT_DIR_FILE = (filename: string) => resolve(`${OUT_DIR}/${filename}`);
-// const WAV_OR_OGG_URL =
-// "https://upload.wikimedia.org/wikipedia/commons/7/7e/Fiche_technique_Ficus_Benjamina.ogg"; // error End frames_to_skip + frames_to_write 2029572 is above the length of frames which are 2"
-const WAV_OR_OGG_URL =
-  "https://upload.wikimedia.org/wikipedia/commons/f/f7/%22Le_village_de_Mollon_dans_l%27Ain%22_prononcé_par_un_habitant_%28dans_la_rue%29.ogg"; // Error: the spitch change
-// const WAV_OR_OGG_URL =
-//   "https://upload.wikimedia.org/wikipedia/commons/f/fc/04_Faisle_Di_Ghadi_-_Paramjit_Maan.ogg";
-// const WAV_OR_OGG_URL =
-//   "https://archive.org/download/Rpp-Episode16WavVersion/rpp16.wav";
+
+// all the data of those type came from the file function
+type infoForResample = {
+  id: number;
+  comments?: string;
+  channels: "mono" | "stereo";
+  format: "ogg" | "wav";
+  sampleRateInput: 44000 | 44100 | 48000;
+  sampleRateOutput: 16000 | 24000 | 32000 | 44000 | 44100 | 48000;
+  expectMaxTimeToConvert: number; //in ms
+  expectedSize?: number; //in nb of frames
+};
+type FilesToResamples = {
+  [key: `https://${string}`]: infoForResample;
+};
+
+const files_to_resamples: FilesToResamples = {
+  "https://upload.wikimedia.org/wikipedia/commons/7/7e/Fiche_technique_Ficus_Benjamina.ogg":
+    {
+      id: 1,
+      channels: "stereo",
+      format: "ogg",
+      sampleRateInput: 44100,
+      sampleRateOutput: 16000,
+      comments:
+        "This file could have error in frames conversion because of its structur",
+      expectMaxTimeToConvert: 60,
+    },
+  "https://upload.wikimedia.org/wikipedia/commons/d/de/Fr-à_bientôt_%21.ogg": {
+    id: 2,
+    channels: "mono",
+    format: "ogg",
+    sampleRateInput: 44000,
+    sampleRateOutput: 32000,
+    comments:
+      "It's a short mono (<1s) so make sure the output don't hav acceleration of the voice",
+    expectMaxTimeToConvert: 20,
+  },
+  "https://upload.wikimedia.org/wikipedia/commons/f/f7/%22Le_village_de_Mollon_dans_l%27Ain%22_prononcé_par_un_habitant_%28dans_la_rue%29.ogg":
+    {
+      id: 3,
+      format: "ogg",
+      sampleRateInput: 44100,
+      sampleRateOutput: 24000,
+      channels: "mono",
+      expectMaxTimeToConvert: 300,
+      comments:
+        "It's a short mono (~1s) so make sure the output don't hav acceleration of the voice",
+    },
+  "https://upload.wikimedia.org/wikipedia/commons/e/ec/Eric_Walter_-_voix.ogg":
+    {
+      id: 4,
+      format: "ogg",
+      sampleRateInput: 44100,
+      sampleRateOutput: 16000,
+      channels: "stereo",
+      expectMaxTimeToConvert: 500,
+    },
+  "https://upload.wikimedia.org/wikipedia/commons/f/fc/04_Faisle_Di_Ghadi_-_Paramjit_Maan.ogg":
+    {
+      id: 5,
+      format: "wav",
+      sampleRateInput: 44100,
+      sampleRateOutput: 16000,
+      channels: "stereo",
+      comments: "Its a big file of 50mb ogg for 35mn audio",
+      expectMaxTimeToConvert: 4000,
+    },
+  "https://upload.wikimedia.org/wikipedia/commons/f/f4/18-dic.-23.12.wav": {
+    id: 6,
+    format: "wav",
+    sampleRateInput: 48000,
+    sampleRateOutput: 16000,
+    channels: "stereo",
+    comments: "This wav use little endian",
+    expectMaxTimeToConvert: 500,
+  },
+  // TODO: In the future should work with BE as like LE , so add a test
+};
+
 const BASE_AUDIO_NAME = "sample-talk.ogg";
 const BASE_AUDIO_FILE = OUT_DIR_FILE(BASE_AUDIO_NAME);
 const BASE_RAW_I16 = OUT_DIR_FILE("sample-talk-int16.raw");
@@ -29,12 +96,29 @@ const BASE_RAW_F32 = OUT_DIR_FILE("sample-talk-f32.raw");
 
 beforeAll(async () => {
   try {
+    // for each url download it name as getBaseName() => `sample-{channels}-{sampleRateInput}.${format}`
+    // for int16 f32 create the getRawBaseName() => `sample-${channels}-${sampleRateInput}-${format}-${numberType}.raw`
     await cleanOutputFolder("start");
-    await downloadFile(WAV_OR_OGG_URL, BASE_AUDIO_FILE);
-    console.log("Finished downloaded file ..");
-    await runSoxCommand(BASE_AUDIO_FILE, BASE_RAW_I16);
-    await runSoxCommand(BASE_AUDIO_FILE, BASE_RAW_F32);
-    console.log("Finished converting file to raw .. starting tests");
+    const files_to_dl = Object.entries(files_to_resamples).map(
+      ([url, data]) => {
+        const output_base = OUT_DIR_FILE(getBaseName(data));
+        return () => downloadFile(url, output_base);
+      }
+    );
+    await Promise.all(files_to_dl.map((f) => f()));
+
+    console.log("ALL files downloaded");
+
+    for (const [_, data] of Object.entries(files_to_resamples)) {
+      const output_base = OUT_DIR_FILE(getBaseName(data));
+
+      const ouputRawBaseI16 = OUT_DIR_FILE(getRawBaseName(data, DataType.I16));
+      const ouputRawBaseF32 = OUT_DIR_FILE(getRawBaseName(data, DataType.F32));
+      await runSoxCommandOnBase(output_base, ouputRawBaseI16, DataType.I16);
+      await runSoxCommandOnBase(output_base, ouputRawBaseF32, DataType.F32);
+    }
+
+    console.log("Finished converted all samples");
   } catch (error) {
     console.error(`error : ${error}`);
   }
@@ -49,112 +133,84 @@ afterAll(async () => {
  * ? from 44100Hz to 16Khz stereo
  */
 describe("NAPI -  Rubato Module", () => {
-  test("Should resample Buffer of int16 data in an acceptable time", async () => {
-    let int16BufferReSampleStart = Date.now();
-    const dataInt16 = await readFile(BASE_RAW_I16);
-    console.time("int16ArrayReSample");
-    const resampleBufferInt16 = reSampleInt16Buffer({
-      inputInt16Buffer: dataInt16,
-      argsAudioToReSample: {
-        channels: 2,
-        sampleRateInput: 44100,
-        sampleRateOutput: 44100,
-      },
-    });
-    console.timeEnd("int16ArrayReSample");
-    let int16BufferReSampleEnd = Date.now();
-    // ? No regression test, should not be > 10s
-    expect(int16BufferReSampleEnd - int16BufferReSampleStart).toBeLessThan(
-      10000
-    );
-    const reSampleBufferInt16Path = OUT_DIR_FILE("buffer-int16.raw");
-    writeFileSync(reSampleBufferInt16Path, resampleBufferInt16);
-    const reSampleBufferInt16PathWav = reSampleBufferInt16Path.replace(
-      ".raw",
-      ".wav"
-    );
-    await exec(
-      `sox  -e signed-integer -b 16 -r 44100 -c 2 ${reSampleBufferInt16Path} -e signed-integer -b 16 ${reSampleBufferInt16PathWav}`
-    );
-  }, 15000);
+  Object.entries(files_to_resamples).forEach(([_, data]) => {
+    const {
+      channels: channelsStr,
+      format,
+      sampleRateInput,
+      sampleRateOutput,
+      expectMaxTimeToConvert,
+      expectedSize,
+    } = data;
+    test(`${format.toUpperCase()} ${channelsStr} ${sampleRateInput} -> ${sampleRateOutput}`, async () => {
+      let channels = channelsStr === "mono" ? 1 : 2;
+      const input_raw_base_i16 = OUT_DIR_FILE(
+        getRawBaseName(data, DataType.I16)
+      );
+      const input_raw_base_f32 = OUT_DIR_FILE(
+        getRawBaseName(data, DataType.F32)
+      );
+      const [bufferI16, bufferF32] = await Promise.all([
+        readFile(input_raw_base_i16),
+        readFile(input_raw_base_f32),
+      ]);
+      let startF32 = Date.now();
+      const convertedBuffF32 = reSampleBuffers({
+        inputBuffer: bufferF32,
+        argsAudioToReSample: {
+          channels,
+          sampleRateInput,
+          sampleRateOutput,
+        },
+      });
+      let endF32 = Date.now();
+      expect(endF32 - startF32).toBeLessThan(expectMaxTimeToConvert);
+      let startI16 = Date.now();
+      const convertedBuffI16 = reSampleInt16Buffer({
+        inputInt16Buffer: bufferI16,
+        argsAudioToReSample: {
+          channels,
+          sampleRateInput,
+          sampleRateOutput,
+        },
+      });
+      let endI16 = Date.now();
+      expect(endI16 - startI16).toBeLessThan(expectMaxTimeToConvert);
 
-  test("Should re-sample Buffer (f32) in an acceptable time", async () => {
-    let bufferReSampleStart = Date.now();
-    const dataF32 = await readFile(BASE_RAW_F32);
-    console.time("bufferReSample");
-    const resampleBufferF32 = reSampleBuffers({
-      inputBuffer: dataF32,
-      argsAudioToReSample: {
-        channels: 2,
-        sampleRateInput: 44100,
-        sampleRateOutput: 16000,
-      },
+      if (!process.env.GITHUB_ACTIONS) {
+        const outputRawConvertedI16 = OUT_DIR_FILE(
+          getConvertedRawName(data, DataType.I16)
+        );
+        const outputRawConvertedF32 = OUT_DIR_FILE(
+          getConvertedRawName(data, DataType.F32)
+        );
+        const outputFinalConvertedI16 = OUT_DIR_FILE(
+          getConvertedName(data, DataType.I16)
+        );
+        const outputFinalConvertedF32 = OUT_DIR_FILE(
+          getConvertedName(data, DataType.F32)
+        );
+        await Promise.all([
+          writeFile(outputRawConvertedI16, convertedBuffI16),
+          writeFile(outputRawConvertedF32, convertedBuffF32),
+        ]);
+        await runSoxCommandOnConverted(
+          outputRawConvertedI16,
+          outputFinalConvertedI16,
+          DataType.I16,
+          sampleRateOutput,
+          channels
+        );
+        await runSoxCommandOnConverted(
+          outputRawConvertedF32,
+          outputFinalConvertedF32,
+          DataType.F32,
+          sampleRateOutput,
+          channels
+        );
+      }
     });
-    console.timeEnd("bufferReSample");
-    const resampleBufferF32Path = OUT_DIR_FILE("buffer-f32.raw");
-    await writeFile(resampleBufferF32Path, resampleBufferF32);
-    let bufferReSampleEndTime = Date.now();
-    // ? No regression test, should not be > 5s
-    expect(bufferReSampleEndTime - bufferReSampleStart).toBeLessThan(5000);
-    const reSampleBufferF32PathWav = resampleBufferF32Path.replace(
-      ".raw",
-      ".wav"
-    );
-    await exec(
-      `sox  -e floating-point -b 32 -r 16000 -c 2 ${resampleBufferF32Path} -e signed-integer -b 16 ${reSampleBufferF32PathWav}`
-    );
-    // expect(reSampledBuff.length).toEqual(1082614592);
-  }, 15000);
-
-  test("Should re-sample via File path (f32) in an acceptable time", async () => {
-    let fileReSampleStartTime = Date.now();
-    console.time("fileResample");
-    const resampleF32PathFile = OUT_DIR_FILE("file-f32.raw");
-    expect(fs.existsSync(resampleF32PathFile)).toBe(false);
-    reSampleAudioFile({
-      outputPath: resampleF32PathFile,
-      typeOfBinData: DataType.F32,
-      inputRawPath: BASE_RAW_F32,
-      argsAudioToReSample: {
-        channels: 2,
-        sampleRateInput: 44100,
-        sampleRateOutput: 16000,
-      },
-    });
-    console.timeEnd("fileResample");
-    let fileReSampleEndTime = Date.now();
-    expect(fileReSampleEndTime - fileReSampleStartTime).toBeLessThan(2500); // ? No regression test, should not be > 2.5s
-    expect(fs.existsSync(resampleF32PathFile)).toBe(true);
-    const reSampleFileF32PathWav = resampleF32PathFile.replace(".raw", ".wav");
-    await exec(
-      `sox -e floating-point -b 32 -r 16000 -c 2 ${resampleF32PathFile} -e signed-integer -b 16 ${reSampleFileF32PathWav}`
-    );
-  }, 10000);
-
-  test("Should re-sample via File path (i16) in an acceptable time", async () => {
-    let fileReSampleStartTime = Date.now();
-    console.time("fileResample");
-    const resampleI16PathFile = OUT_DIR_FILE("file-i16.raw");
-    expect(fs.existsSync(resampleI16PathFile)).toBe(false);
-    reSampleAudioFile({
-      outputPath: resampleI16PathFile,
-      typeOfBinData: DataType.I16,
-      inputRawPath: BASE_RAW_I16,
-      argsAudioToReSample: {
-        channels: 2,
-        sampleRateInput: 44100,
-        sampleRateOutput: 16000,
-      },
-    });
-    console.timeEnd("fileResample");
-    let fileReSampleEndTime = Date.now();
-    expect(fileReSampleEndTime - fileReSampleStartTime).toBeLessThan(2500); // ? No regression test, should not be > 2.5s
-    expect(fs.existsSync(resampleI16PathFile)).toBe(true);
-    const resampleI16PathFileWav = resampleI16PathFile.replace(".raw", ".wav");
-    await exec(
-      `sox -e signed-integer -b 16 -r 16000 -c 2 ${resampleI16PathFile} -e signed-integer -b 16 ${resampleI16PathFileWav}`
-    );
-  }, 10000);
+  });
 });
 
 /**
@@ -164,11 +220,6 @@ describe("NAPI -  Rubato Module", () => {
  * @returns  void
  */
 async function downloadFile(url: string, outputPath: string) {
-  if (fs.existsSync(outputPath)) {
-    console.log(`File ${outputPath} alreayd exists.`);
-    return;
-  }
-
   try {
     const response = await axios.get(url, { responseType: "stream" });
 
@@ -192,20 +243,71 @@ async function downloadFile(url: string, outputPath: string) {
  * @param outputFilePath .RAW converted entry file
  * @returns void
  */
-async function runSoxCommand(inputFilePath: string, outputFilePath: string) {
-  let type = outputFilePath.includes("f32")
-    ? "floating-point"
-    : "signed-integer";
-  let size = outputFilePath.includes("f32") ? "32" : "16";
+async function runSoxCommandOnBase(
+  inputFilePath: string,
+  outputFilePath: string,
+  dataType: DataType
+) {
+  let type = dataType === DataType.F32 ? "floating-point" : "signed-integer";
+  let size = dataType === DataType.F32 ? "32" : "16";
   const command = `sox ${inputFilePath} -e ${type} -b ${size} ${outputFilePath}`;
   const { stderr } = await exec(command);
 
   if (stderr) {
-    console.error(`SOX error  : ${stderr}`);
+    console.log(`SOX error  : ${stderr}`);
     return;
   }
 
   console.log(`Sox conversion to raw file in ${size} done`);
+}
+
+async function runSoxCommandOnConverted(
+  inputFilePath: string,
+  outputFilePath: string,
+  dataType: DataType,
+  sampleRateOutput: number,
+  channels: number
+) {
+  let type = dataType === DataType.F32 ? "floating-point" : "signed-integer";
+  let size = dataType === DataType.F32 ? "32" : "16";
+  const command = `sox  -e ${type} -b ${size} -r ${sampleRateOutput} -c ${channels} ${inputFilePath} -e signed-integer -b 16 ${outputFilePath}`;
+  console.log("command", command);
+  const { stderr } = await exec(command);
+
+  if (stderr) {
+    console.log(`SOX error  : ${stderr}`);
+    return;
+  }
+
+  console.log(`Sox conversion back to final file in ${size} done`);
+}
+
+function getBaseName({
+  id,
+  channels,
+  format,
+  sampleRateInput,
+}: infoForResample) {
+  return `sample-${id}-${channels}-${sampleRateInput}.${format}`;
+}
+function getRawBaseName(
+  { id, channels, format, sampleRateInput }: infoForResample,
+  dataType: DataType
+) {
+  return `sample-${id}-${channels}-${sampleRateInput}-${format}-${dataType}.raw`;
+}
+function getConvertedRawName(
+  { id, channels, format, sampleRateInput, sampleRateOutput }: infoForResample,
+  dataType: DataType
+) {
+  return `converted-${id}-${channels}-${sampleRateInput}-${sampleRateOutput}-${format}-${dataType}.raw`;
+}
+function getConvertedName(
+  { id, channels, sampleRateInput, sampleRateOutput }: infoForResample,
+  dataType: DataType
+) {
+  let dataTypeStr = dataType === DataType.I16 ? "i16" : "f32";
+  return `converted-${id}-${channels}-${sampleRateInput}-${sampleRateOutput}-${dataTypeStr}.wav`; // wave for all because ogg does not support some sampleRate !
 }
 
 // When tests start we keep only the downloaded file, when tests finished  we remove all raw and keep final .wav to be able to listen to them
@@ -213,9 +315,8 @@ async function cleanOutputFolder(type: "start" | "end") {
   fs.readdirSync(OUT_DIR).forEach((filename) => {
     let shouldKeepThisFile =
       type === "end"
-        ? filename.includes(".wav") || filename === BASE_AUDIO_NAME
-        : filename === BASE_AUDIO_NAME;
-    console.log("BASE_AUDIO_NAME", BASE_AUDIO_NAME, shouldKeepThisFile);
+        ? !filename.includes(".raw") && filename.includes("converted")
+        : false;
     if (shouldKeepThisFile) {
       return;
     }

@@ -163,15 +163,18 @@ pub fn skip_frames(
   let channels = frames.len();
 
   let _end = frames_to_skip + frames_to_write;
-  let minimum_of_frames_channels = if frames.len() > 1 { std::cmp::min(frames[0].len(),  frames[1].len()) } else {frames[0].len()} ; //depending on mono or stereo
+  let minimum_of_frames_channels = if frames.len() > 1 {
+    std::cmp::min(frames[0].len(), frames[1].len())
+  } else {
+    frames[0].len()
+  }; //depending on mono or stereo
   let end = std::cmp::min(minimum_of_frames_channels, _end);
   debug!(
-    "frames_to_skip {:?} frames_to_write {:?} end is {:?} frames[0] has {:?} and frames[1] has {:?} elements",
-    frames_to_skip, 
+    "frames_to_skip {:?} frames_to_write {:?} end is {:?} frames[0] has {:?} elements",
+    frames_to_skip,
     frames_to_write,
     end,
     frames[0].len(),
-    frames[1].len()
   );
 
   for frame_to_skip in frames_to_skip..end {

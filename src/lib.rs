@@ -133,11 +133,10 @@ pub fn re_sample_buffers(args: ArgsAudioBuffer) -> Buffer {
   let data = f32_buffer_to_vecs(&mut read_buffer, channels as usize);
   debug!("After f32_buffer_to_vecs length is {}", &data[0].len());
   debug!(
-    "It took {:?} to convert {} buffer elements vec to vec<vec<f32>> with [0] contains {} and [1] {}",
+    "It took {:?} to convert {} buffer elements vec to vec<vec<f32>> with [0] contains {}",
     buffer_conversion_time.elapsed(),
     input_buffer.len(),
     data[0].len(),
-    data[1].len()
   );
 
   let output_data = re_sample_audio_buffer(
