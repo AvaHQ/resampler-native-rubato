@@ -2,7 +2,7 @@ extern crate env_logger;
 extern crate num_traits;
 
 use byteorder::{LittleEndian, ReadBytesExt};
-use log::error;
+use log::{debug, error};
 use num_traits::FromPrimitive;
 use std::convert::TryInto;
 use std::fs::File;
@@ -97,6 +97,7 @@ That is, for an example of 2 time steps, 2 channels, and (as always) 2 bytes per
  ```
 */
 pub fn i16_buffer_to_vecs<R: Read>(input_reader: &mut R, channels: usize) -> Vec<Vec<f32>> {
+  debug!("i16_buffer_to_vecs conversion of {:?} channels", channels);
   let mut audio_data = Vec::with_capacity(channels);
   for _chan in 0..channels {
     audio_data.push(Vec::new());
@@ -160,14 +161,19 @@ pub fn skip_frames(
 ) -> Result<Vec<f32>, String> {
   let mut collected_data: Vec<f32> = Vec::new();
   let channels = frames.len();
-  let end = frames_to_skip + frames_to_write;
-  if end > frames[0].len() {
-    return Err(format!(
-      "End frames_to_skip + frames_to_write {} is above the length of frames which are {}",
-      end,
-      frames.len()
-    ));
-  }
+
+  let _end = frames_to_skip + frames_to_write;
+  let minimum_of_frames_channels = if frames.len() > 1 { std::cmp::min(frames[0].len(),  frames[1].len()) } else {frames[0].len()} ; //depending on mono or stereo
+  let end = std::cmp::min(minimum_of_frames_channels, _end);
+  debug!(
+    "frames_to_skip {:?} frames_to_write {:?} end is {:?} frames[0] has {:?} and frames[1] has {:?} elements",
+    frames_to_skip, 
+    frames_to_write,
+    end,
+    frames[0].len(),
+    frames[1].len()
+  );
+
   for frame_to_skip in frames_to_skip..end {
     for frame in frames.iter().take(channels) {
       let value32 = frame[frame_to_skip];
@@ -438,4 +444,19 @@ mod tests {
     let file_contents = fs::read(output_file).expect("Failed to read file");
     assert_eq!(file_contents, frames);
   }
+}
+
+pub fn flatten_frames(frames: Vec<Vec<f32>>) -> Vec<f32> {
+  let num_channels = frames.len();
+  let num_samples = frames[0].len(); // On suppose que tous les canaux ont la même longueur
+
+  let mut flattened_data: Vec<f32> = Vec::with_capacity(num_channels * num_samples);
+
+  for sample_index in 0..num_samples {
+    for channel_index in 0..num_channels {
+      flattened_data.push(frames[channel_index][sample_index]);
+    }
+  }
+
+  flattened_data
 }

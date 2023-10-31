@@ -78,8 +78,8 @@ pub fn re_sample_audio_file(args: ArgsAudioFile) {
 
   // Depending of sub-data-type we can use i16 or f32
   let indata: Vec<Vec<f32>> = match type_of_bin_data {
-    DataType::I16 => i16_buffer_to_vecs(&mut file_in_reader, 2),
-    DataType::F32 => f32_buffer_to_vecs(&mut file_in_reader, 2),
+    DataType::I16 => i16_buffer_to_vecs(&mut file_in_reader, channels as usize),
+    DataType::F32 => f32_buffer_to_vecs(&mut file_in_reader, channels as usize),
   };
 
   let start = Instant::now();
@@ -173,13 +173,12 @@ pub fn re_sample_int_16_buffer(args: ArgsAudioInt16Buffer) -> Buffer {
   } = args_audio_to_re_sample;
   let convert_i16_time = Instant::now();
   let mut read_buffer = Box::new(Cursor::new(&input_int16_buffer));
-  let i16_data = i16_buffer_to_vecs(&mut read_buffer, 2);
+  let i16_data = i16_buffer_to_vecs(&mut read_buffer, channels as usize);
   debug!(
-    "It took {:?} to convert {} i16 elements vec to vec<vec<f32>> with [0] contains {} and [1] {}",
+    "It took {:?} to convert {} i16 elements vec to vec<vec<f32>> with [0] contains {} ",
     convert_i16_time.elapsed(),
     input_int16_buffer.len(),
     i16_data[0].len(),
-    i16_data[1].len()
   );
 
   let output_data = re_sample_audio_buffer(
@@ -227,16 +226,18 @@ fn re_sample_audio_buffer(
   let duration_total = Instant::now();
 
   let fs_out = output_sample_rate;
-  debug!("Sample {} for output {}", &fs_in, &fs_out);
+  debug!(
+    "Sample {} for output {} and nbr_input_frames {:?}",
+    &fs_in, &fs_out, &nbr_input_frames,
+  );
 
   // Create buffer for storing output
-  let mut outdata =
-    vec![
-      Vec::with_capacity(2 * (nbr_input_frames as f32 * fs_out as f32 / fs_in as f32) as usize);
-      channels
-    ];
+  let capacity_sub_vecs = 2 * (nbr_input_frames as f32 * fs_out as f32 / fs_in as f32) as usize;
+  let mut outdata = vec![Vec::with_capacity(capacity_sub_vecs); channels];
 
   let f_ratio = fs_out as f64 / fs_in as f64;
+
+  debug!("Ratio to apply is {:?} outdata is a vec of {:?} vec(s) and each sub-vec sould has a capacity of {:?}, real capacity is about {:?} ", f_ratio, outdata.len(),capacity_sub_vecs, outdata[0].capacity());
 
   let mut resampler = FastFixedIn::<f32>::new(
     f_ratio,
@@ -252,6 +253,8 @@ fn re_sample_audio_buffer(
   let resampler_delay = resampler.output_delay();
   let mut outbuffer = vec![vec![0.0f32; resampler.output_frames_max()]; channels];
   let mut indata_slices: Vec<&[f32]> = buffer.iter().map(|v| &v[..]).collect();
+
+  debug!("Resampler_delay is {:?} outbuffer is a vec of {:?} vec(s) and each sub-vec has a capacity of {:?} ", resampler_delay, outbuffer.len(),outbuffer[0].capacity());
 
   // Process all full chunks
   while indata_slices[0].len() >= input_frames_next {
@@ -274,6 +277,8 @@ fn re_sample_audio_buffer(
   }
 
   let nbr_output_frames = (nbr_input_frames as f64 * fs_out as f64 / fs_in as f64) as usize;
+
+  debug!("nbr_output_frames is equal to {:?} ", nbr_output_frames);
 
   let duration_total_time = duration_total.elapsed();
   debug!("Resampling buffer took: {:?}", duration_total_time);
