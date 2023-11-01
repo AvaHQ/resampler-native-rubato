@@ -1,90 +1,122 @@
-use log::error;
+extern crate env_logger;
+extern crate num_traits;
+
+use byteorder::{LittleEndian, ReadBytesExt};
+use log::{debug, error};
+use num_traits::FromPrimitive;
 use std::convert::TryInto;
 use std::fs::File;
 use std::io::prelude::Read;
 use std::io::{BufWriter, Write};
 
-const BYTE_PER_SAMPLE: usize = 8;
 /**
- Reads data from a Read trait and converts it into a vector of vectors containing 64-bit floating-point numbers (f64).
+ Reads data from a Read trait and converts it into a vector of vectors containing 32-bit floating-point numbers (f32).
 
  # Arguments
 
- * `input_buffer` - A mutable reference to a type implementing the Read trait, such as a file or a buffer.
+ * `input_reader` - A mutable reference to a type implementing the Read trait, such as a file or a buffer. The bytes of this buffer always assume to represent u8 number of little endian
  * `channels` - The number of channels in the resulting vector of vectors.
+
+ The samples are memory contigus, so we have two samples for two channels.
+  The byte order of the data is: time step, channel, sample byte.
+  That is, for an example of 2 time steps, 2 channels, and (as always) 2 bytes per sample
 
  # Returns
 
- Returns a vector of vectors, where each inner vector represents a channel of audio data as 64-bit floating-point numbers (f64).
+ Returns a vector of vectors, where each inner vector represents a channel of audio data as 32-bit floating-point numbers (f32).
 
  # Example
 
  ```
  use std::fs::File;
  use std::io::Read;
- use my_audio_library::buffer_to_vecs;
+ use my_audio_library::f32_buffer_to_vecs;
 
  let mut file = File::open("audio.bin").expect("Failed to open file");
  let channels = 2;
 
- let result = buffer_to_vecs(&mut file, channels);
+ let result = f32_buffer_to_vecs(&mut file, channels);
 
  // You can now process the resulting audio data.
  ```
 */
-pub fn buffer_to_vecs<R: Read>(input_buffer: &mut R, channels: usize) -> Vec<Vec<f64>> {
-  let mut buffer = vec![0u8; BYTE_PER_SAMPLE];
-  let mut wfs = vec![Vec::new(); channels];
-  'outer: loop {
-    for wf in wfs.iter_mut() {
-      let bytes_read = input_buffer.read(&mut buffer).unwrap();
+pub fn f32_buffer_to_vecs<R: Read>(input_reader: &mut R, channels: usize) -> Vec<Vec<f32>> {
+  let mut buffer = vec![0u8; 4]; // 4*8->32
+  let mut audio_data = vec![Vec::new(); channels];
+  'conversion_loop: loop {
+    // dispatch the data between channels
+    for audio_single_channel in audio_data.iter_mut() {
+      let bytes_read = input_reader.read(&mut buffer).unwrap();
       if bytes_read == 0 {
-        break 'outer;
+        break 'conversion_loop;
       }
-      let value = f64::from_le_bytes(buffer.as_slice().try_into().unwrap()); //Little endian
-      wf.push(value);
+      let value = match buffer.as_slice().try_into() {
+        Ok(bytes) => f32::from_le_bytes(bytes),
+        Err(error) => {
+          error!("Error of conversion to f32 {}", error.to_string());
+          0.0
+        }
+      };
+      audio_single_channel.push(value);
     }
   }
-  wfs
+  audio_data
 }
 
 /**
- Converts a vector of signed 16-bit integers (i16) into a vector of vectors containing 64-bit floating-point numbers (f64).
+ Converts a vector of signed 16-bit integers (i16) into a vector of vectors containing 32-bit floating-point numbers (f32).
 
  # Arguments
 
- * `input_data` - A vector of signed 16-bit integers to be converted.
+ * `input_reader` - A buffer of signed 16-bit integers to be converted.
  * `channels` - The number of channels in the resulting vector of vectors.
+
+The samples are memory contigus, so we have two samples for two channels.
+The byte order of the data is: time step, channel, sample byte.
+That is, for an example of 2 time steps, 2 channels, and (as always) 2 bytes per sample
 
  # Returns
 
- Returns a vector of vectors, where each inner vector represents a channel of audio data as 64-bit floating-point numbers (f64).
+ Returns a vector of vectors, where each inner vector represents a channel of audio data as 32-bit floating-point numbers (f32).
 
  # Example
 
  ```
- use my_audio_library::i16_vec_to_vecs;
+ use std::fs::File;
+ use std::io::Read;
+ use my_audio_library::i16_buffer_to_vecs;
 
- let input_data: Vec<i16> = vec![123, 456, 789, -321, 654, -987];
+ let mut file = File::open("audio.bin").expect("Failed to open file");
  let channels = 2;
 
- let result = i16_vec_to_vecs(input_data, channels);
+ let result = i16_buffer_to_vecs(&mut file, channels);
 
  assert_eq!(result.len(), channels);
  assert_eq!(result[0], vec![123.0, 456.0, 789.0, -321.0]);
  assert_eq!(result[1], vec![654.0, -987.0]);
  ```
 */
-pub fn i16_vec_to_vecs(input_data: &[i16], channels: usize) -> Vec<Vec<f64>> {
-  let mut wfs = vec![Vec::with_capacity(input_data.len() / channels); channels];
-
-  for (i, &i16_value) in input_data.iter().enumerate() {
-    let f64_value = i16_value as f64;
-    let channel_index = i % channels;
-    wfs[channel_index].push(f64_value);
+pub fn i16_buffer_to_vecs<R: Read>(input_reader: &mut R, channels: usize) -> Vec<Vec<f32>> {
+  debug!("i16_buffer_to_vecs conversion of {:?} channels", channels);
+  let mut audio_data = Vec::with_capacity(channels);
+  for _chan in 0..channels {
+    audio_data.push(Vec::new());
   }
-
-  wfs
+  'outer: loop {
+    // dispatch the data between channels
+    for audio_single_channel in audio_data.iter_mut() {
+      match input_reader.read_i16::<LittleEndian>() {
+        Ok(value_i16) => {
+          let value_f32 = f32::from_i16(value_i16).unwrap() / f32::from_i16(i16::MAX).unwrap();
+          audio_single_channel.push(value_f32);
+        }
+        Err(_err) => {
+          break 'outer; // end of loop err happen when oef for eg
+        }
+      }
+    }
+  }
+  audio_data
 }
 
 /** Skips a specified number of frames in a multi-channel audio signal and collects a certain number of subsequent frames.
@@ -97,14 +129,14 @@ pub fn i16_vec_to_vecs(input_data: &[i16], channels: usize) -> Vec<Vec<f64>> {
 
  # Returns
 
- Returns a `Result` where `Ok` contains a vector of collected audio data as `f64` values, and `Err` contains an error message if frames_to_skip + frames_to_write exceeds the length of the input frames for any channel.
+ Returns a `Result` where `Ok` contains a vector of collected audio data as `f32` values, and `Err` contains an error message if frames_to_skip + frames_to_write exceeds the length of the input frames for any channel.
 
  # Example
 
  ```
  use my_audio_library::skip_frames;
 
- let frames: Vec<Vec<f64>> = vec![
+ let frames: Vec<Vec<f32>> = vec![
      vec![1.0, 2.0, 3.0, 4.0],
      vec![5.0, 6.0, 7.0, 8.0],
  ];
@@ -123,24 +155,32 @@ pub fn i16_vec_to_vecs(input_data: &[i16], channels: usize) -> Vec<Vec<f64>> {
 **/
 
 pub fn skip_frames(
-  frames: Vec<Vec<f64>>,
+  frames: Vec<Vec<f32>>,
   frames_to_skip: usize,
   frames_to_write: usize,
-) -> Result<Vec<f64>, String> {
-  let mut collected_data: Vec<f64> = Vec::new();
+) -> Result<Vec<f32>, String> {
+  let mut collected_data: Vec<f32> = Vec::new();
   let channels = frames.len();
-  let end = frames_to_skip + frames_to_write;
-  if end > frames[0].len() {
-    return Err(format!(
-      "End frames_to_skip + frames_to_write {} is above the length of frames which are {}",
-      end,
-      frames.len()
-    ));
-  }
+
+  let _end = frames_to_skip + frames_to_write;
+  let minimum_of_frames_channels = if frames.len() > 1 {
+    std::cmp::min(frames[0].len(), frames[1].len())
+  } else {
+    frames[0].len()
+  }; //depending on mono or stereo
+  let end = std::cmp::min(minimum_of_frames_channels, _end);
+  debug!(
+    "frames_to_skip {:?} frames_to_write {:?} end is {:?} frames[0] has {:?} elements",
+    frames_to_skip,
+    frames_to_write,
+    end,
+    frames[0].len(),
+  );
+
   for frame_to_skip in frames_to_skip..end {
     for frame in frames.iter().take(channels) {
-      let value64 = frame[frame_to_skip];
-      collected_data.extend_from_slice(&[value64]);
+      let value32 = frame[frame_to_skip];
+      collected_data.extend_from_slice(&[value32]);
     }
   }
   Ok(collected_data)
@@ -160,8 +200,8 @@ pub fn skip_frames(
  ```
  use my_audio_library::append_frames;
 
- let mut audio_buffers: Vec<Vec<f64>> = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
- let additional_frames: Vec<Vec<f64>> = vec![vec![5.0, 6.0], vec![7.0, 8.0]];
+ let mut audio_buffers: Vec<Vec<f32>> = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
+ let additional_frames: Vec<Vec<f32>> = vec![vec![5.0, 6.0], vec![7.0, 8.0]];
  let num_frames_to_append = 1;
 
  append_frames(&mut audio_buffers, &additional_frames, num_frames_to_append);
@@ -169,7 +209,7 @@ pub fn skip_frames(
  // Now, audio_buffers contains the appended audio data.
  ```
 */
-pub fn append_frames(buffers: &mut [Vec<f64>], additional: &[Vec<f64>], nbr_frames: usize) {
+pub fn append_frames(buffers: &mut [Vec<f32>], additional: &[Vec<f32>], nbr_frames: usize) {
   buffers
     .iter_mut()
     .zip(additional.iter())
@@ -232,55 +272,71 @@ mod tests {
   /**
    * ? i16_vec_to_vecsc Unit Tests
    */
-
   #[test]
   fn test_i16_vec_to_vecs_stereo() {
-    // Créez un exemple de données d'entrée
-    let input_data: Vec<i16> = vec![123, 456, 789, -321, 654, -987];
+    let i16_values: Vec<i16> = vec![123, 456, 789, -321, 654, -987];
+    let u8_values: &[u8] = unsafe {
+      std::slice::from_raw_parts(
+        i16_values.as_ptr() as *const u8,
+        i16_values.len() * std::mem::size_of::<i16>(),
+      )
+    };
+
+    let mut reader_data = Cursor::new(u8_values);
     let channels = 2;
 
-    // Appelez la fonction pour obtenir le résultat
-    let result = i16_vec_to_vecs(&input_data, channels);
+    let result = i16_buffer_to_vecs(&mut reader_data, channels);
 
-    // Vérifiez que le résultat a le nombre attendu de canaux
     assert_eq!(result.len(), channels);
 
-    // Vérifiez le contenu du résultat
-    assert_eq!(result[0], vec![123.0, 789.0, 654.0]);
-    assert_eq!(result[1], vec![456.0, -321.0, -987.0]);
+    assert_eq!(result[0], vec![0.0037537767, 0.024079105, 0.019959105]); // representing i16 abov number but to f32 divide by max of i16
+    assert_eq!(result[1], vec![0.01391644, -0.0097964415, -0.03012177]);
   }
   #[test]
   fn test_i16_vec_to_vecs_mono() {
-    // Créez un exemple de données d'entrée
-    let input_data: Vec<i16> = vec![123, 456, 789, -321, 654, -987];
+    let i16_values: Vec<i16> = vec![123, 456, 789, -321, 654, -987];
+    let u8_values: &[u8] = unsafe {
+      std::slice::from_raw_parts(
+        i16_values.as_ptr() as *const u8,
+        i16_values.len() * std::mem::size_of::<i16>(),
+      )
+    };
+    let mut reader_data = Cursor::new(u8_values);
     let channels = 1;
 
-    // Appelez la fonction pour obtenir le résultat
-    let result = i16_vec_to_vecs(&input_data, channels);
+    let result = i16_buffer_to_vecs(&mut reader_data, channels);
 
-    // Vérifiez que le résultat a le nombre attendu de canaux
     assert_eq!(result.len(), channels);
-
-    // Vérifiez le contenu du résultat
-    assert_eq!(result[0], vec![123.0, 456.0, 789.0, -321.0, 654.0, -987.0]);
+    // Should be in range [-1.0;1.0] for audio
+    assert_eq!(
+      result[0],
+      vec![
+        0.0037537767,
+        0.01391644,
+        0.024079105,
+        -0.0097964415,
+        0.019959105,
+        -0.03012177
+      ]
+    );
   }
 
   /**
-   * ? buffer_to_vecs Unit Tests
+   * ? f32_buffer_to_vecs Unit Tests
    */
-
   #[test]
   fn test_buffer_to_vecs_single_channel() {
     let data: &[u8] = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
     let mut input_buffer = std::io::Cursor::new(data);
 
     let channels = 1;
-    let result = buffer_to_vecs(&mut input_buffer, channels);
-
+    let result = f32_buffer_to_vecs(&mut input_buffer, channels);
     // mono so all inside same deep vec
-    let expected_result: Vec<Vec<f64>> = vec![vec![
-      f64::from_le_bytes([1, 2, 3, 4, 5, 6, 7, 8]),
-      f64::from_le_bytes([9, 10, 11, 12, 13, 14, 15, 16]),
+    let expected_result: Vec<Vec<f32>> = vec![vec![
+      f32::from_le_bytes([1, 2, 3, 4]),
+      f32::from_le_bytes([5, 6, 7, 8]),
+      f32::from_le_bytes([9, 10, 11, 12]),
+      f32::from_le_bytes([13, 14, 15, 16]),
     ]];
     assert_eq!(result, expected_result);
   }
@@ -291,12 +347,18 @@ mod tests {
     let mut input_buffer = std::io::Cursor::new(data);
 
     let channels = 2;
-    let result = buffer_to_vecs(&mut input_buffer, channels);
+    let result = f32_buffer_to_vecs(&mut input_buffer, channels);
 
     // stereo so vec of vec for channels
-    let expected_result: Vec<Vec<f64>> = vec![
-      vec![f64::from_le_bytes([1, 2, 3, 4, 5, 6, 7, 8])],
-      vec![f64::from_le_bytes([9, 10, 11, 12, 13, 14, 15, 16])],
+    let expected_result: Vec<Vec<f32>> = vec![
+      vec![
+        f32::from_le_bytes([1, 2, 3, 4]),
+        f32::from_le_bytes([9, 10, 11, 12]),
+      ],
+      vec![
+        f32::from_le_bytes([5, 6, 7, 8]),
+        f32::from_le_bytes([13, 14, 15, 16]),
+      ],
     ];
     assert_eq!(result, expected_result);
   }
@@ -307,20 +369,19 @@ mod tests {
     let mut input_buffer = std::io::Cursor::new(data);
 
     let channels = 1;
-    let result = buffer_to_vecs(&mut input_buffer, channels);
+    let result = f32_buffer_to_vecs(&mut input_buffer, channels);
 
-    let expected_result: Vec<Vec<f64>> = vec![vec![]];
+    let expected_result: Vec<Vec<f32>> = vec![vec![]];
     assert_eq!(result, expected_result);
   }
 
   /**
    * ? skip_frames Unit Tests
    */
-
   #[test]
   fn test_skip_frames_should_return_an_error() {
     // because will be out of range of clusion
-    let frames: Vec<Vec<f64>> = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
+    let frames: Vec<Vec<f32>> = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
     let frames_to_skip = 4;
     let frames_to_write = 1;
 
@@ -333,38 +394,37 @@ mod tests {
 
   #[test]
   fn test_skip_frames_no_frames_to_write() {
-    let frames: Vec<Vec<f64>> = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
+    let frames: Vec<Vec<f32>> = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
     let frames_to_skip = 1;
     let frames_to_write = 0;
 
     let result = skip_frames(frames, frames_to_skip, frames_to_write).unwrap();
 
     // Expected result: Empty vector
-    let expected_result: Vec<f64> = vec![];
+    let expected_result: Vec<f32> = vec![];
     assert_eq!(result, expected_result);
   }
 
   #[test]
   fn test_skip_frames_skip_all_frames() {
-    let frames: Vec<Vec<f64>> = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
+    let frames: Vec<Vec<f32>> = vec![vec![1.0, 2.0, 3.0], vec![4.0, 5.0, 6.0]];
     let frames_to_skip = 3;
     let frames_to_write = 0;
 
     let result = skip_frames(frames, frames_to_skip, frames_to_write).unwrap();
 
     // Expected result: Empty vector
-    let expected_result: Vec<f64> = vec![];
+    let expected_result: Vec<f32> = vec![];
     assert_eq!(result, expected_result);
   }
 
   /**
    * ? append_frames Unit Tests
    */
-
   #[test]
   fn test_append_frames() {
-    let mut audio_buffers: Vec<Vec<f64>> = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
-    let additional_frames: Vec<Vec<f64>> = vec![vec![5.0, 6.0], vec![7.0, 8.0]];
+    let mut audio_buffers: Vec<Vec<f32>> = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
+    let additional_frames: Vec<Vec<f32>> = vec![vec![5.0, 6.0], vec![7.0, 8.0]];
     let num_frames_to_append = 1;
 
     append_frames(&mut audio_buffers, &additional_frames, num_frames_to_append);
@@ -372,7 +432,7 @@ mod tests {
     assert_eq!(audio_buffers[0], vec![1.0, 2.0, 5.0]);
     assert_eq!(audio_buffers[1], vec![3.0, 4.0, 7.0]);
   }
-  use std::fs;
+  use std::{fs, io::Cursor};
   use tempfile::tempdir;
   #[test]
   fn test_write_frames_to_disk() {
@@ -387,4 +447,19 @@ mod tests {
     let file_contents = fs::read(output_file).expect("Failed to read file");
     assert_eq!(file_contents, frames);
   }
+}
+
+pub fn flatten_frames(frames: Vec<Vec<f32>>) -> Vec<f32> {
+  let num_channels = frames.len();
+  let num_samples = frames[0].len(); // On suppose que tous les canaux ont la même longueur
+
+  let mut flattened_data: Vec<f32> = Vec::with_capacity(num_channels * num_samples);
+
+  for sample_index in 0..num_samples {
+    for channel_index in 0..num_channels {
+      flattened_data.push(frames[channel_index][sample_index]);
+    }
+  }
+
+  flattened_data
 }

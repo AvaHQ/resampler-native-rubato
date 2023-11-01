@@ -11,10 +11,15 @@ export interface ArgsAudioToReSample {
   sampleRateOutput: number
   channels: number
 }
+export const enum DataType {
+  I16 = 0,
+  F32 = 1
+}
 export interface ArgsAudioFile {
   argsAudioToReSample: ArgsAudioToReSample
   inputRawPath: string
   outputPath: string
+  typeOfBinData: DataType
 }
 export function reSampleAudioFile(args: ArgsAudioFile): void
 export interface ArgsAudioBuffer {
@@ -22,8 +27,8 @@ export interface ArgsAudioBuffer {
   inputBuffer: Buffer
 }
 export function reSampleBuffers(args: ArgsAudioBuffer): Buffer
-export interface ArgsAudioInt16Array {
+export interface ArgsAudioInt16Buffer {
   argsAudioToReSample: ArgsAudioToReSample
-  inputInt16Array: Int16Array
+  inputInt16Buffer: Buffer
 }
-export function reSampleInt16Array(args: ArgsAudioInt16Array): Int16Array
+export function reSampleInt16Buffer(args: ArgsAudioInt16Buffer): Buffer
