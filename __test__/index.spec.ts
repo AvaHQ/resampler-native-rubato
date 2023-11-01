@@ -118,7 +118,7 @@ beforeAll(async () => {
       await runSoxCommandOnBase(output_base, ouputRawBaseF32, DataType.F32);
     }
 
-    console.log("Finished converted all samples");
+    console.log("Finished converted all samples to raw");
   } catch (error) {
     console.error(`error : ${error}`);
   }
@@ -257,8 +257,6 @@ async function runSoxCommandOnBase(
     console.log(`SOX error  : ${stderr}`);
     return;
   }
-
-  console.log(`Sox conversion to raw file in ${size} done`);
 }
 
 async function runSoxCommandOnConverted(
@@ -271,15 +269,12 @@ async function runSoxCommandOnConverted(
   let type = dataType === DataType.F32 ? "floating-point" : "signed-integer";
   let size = dataType === DataType.F32 ? "32" : "16";
   const command = `sox  -e ${type} -b ${size} -r ${sampleRateOutput} -c ${channels} ${inputFilePath} -e signed-integer -b 16 ${outputFilePath}`;
-  console.log("command", command);
   const { stderr } = await exec(command);
 
   if (stderr) {
     console.log(`SOX error  : ${stderr}`);
     return;
   }
-
-  console.log(`Sox conversion back to final file in ${size} done`);
 }
 
 function getBaseName({

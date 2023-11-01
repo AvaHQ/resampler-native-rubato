@@ -7,7 +7,7 @@ mod helpers;
 
 use log::debug;
 use num_traits::FromPrimitive;
-use rubato::{implement_resampler, FastFixedIn, PolynomialDegree};
+use rubato::{implement_resampler, FastFixedIn, FastFixedOut, FftFixedInOut, PolynomialDegree};
 
 use std::fs::File;
 use std::io::{BufReader, Cursor};
@@ -238,7 +238,7 @@ fn re_sample_audio_buffer(
 
   debug!("Ratio to apply is {:?} outdata is a vec of {:?} vec(s) and each sub-vec sould has a capacity of {:?}, real capacity is about {:?} ", f_ratio, outdata.len(),capacity_sub_vecs, outdata[0].capacity());
 
-  let mut resampler = FastFixedIn::<f32>::new(
+  let mut resampler = FastFixedOut::<f32>::new(
     f_ratio,
     1.1,
     PolynomialDegree::Septic,
