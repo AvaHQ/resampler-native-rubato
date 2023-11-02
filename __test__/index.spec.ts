@@ -319,7 +319,9 @@ async function cleanOutputFolder(type: "start" | "end") {
   fs.readdirSync(OUT_DIR).forEach((filename) => {
     let shouldKeepThisFile =
       type === "end"
-        ? !filename.includes(".raw") && filename.includes("converted")
+        ? !filename.includes(".raw") &&
+          filename.includes("converted") &&
+          !filename.includes(".gitkeep")
         : false;
     if (shouldKeepThisFile) {
       return;
