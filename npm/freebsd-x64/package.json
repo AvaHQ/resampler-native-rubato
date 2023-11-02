@@ -1,6 +1,6 @@
 {
   "name": "@avahq/resampler-native-rubato-freebsd-x64",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "os": [
     "freebsd"
   ],
