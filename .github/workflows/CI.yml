@@ -464,7 +464,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     needs:
-      # - build-freebsd
+      - build-freebsd
       # - test-macOS-windows-binding
       # - test-linux-x64-gnu-binding
       # - test-linux-x64-musl-binding
