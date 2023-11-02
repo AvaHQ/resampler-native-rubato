@@ -448,18 +448,3 @@ mod tests {
     assert_eq!(file_contents, frames);
   }
 }
-
-pub fn flatten_frames(frames: Vec<Vec<f32>>) -> Vec<f32> {
-  let num_channels = frames.len();
-  let num_samples = frames[0].len(); // On suppose que tous les canaux ont la même longueur
-
-  let mut flattened_data: Vec<f32> = Vec::with_capacity(num_channels * num_samples);
-
-  for sample_index in 0..num_samples {
-    for channel_index in 0..num_channels {
-      flattened_data.push(frames[channel_index][sample_index]);
-    }
-  }
-
-  flattened_data
-}

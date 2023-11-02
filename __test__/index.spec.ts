@@ -19,7 +19,7 @@ type infoForResample = {
   sampleRateInput: 44000 | 44100 | 48000;
   sampleRateOutput: 16000 | 24000 | 32000 | 44000 | 44100 | 48000;
   expectMaxTimeToConvert: number; //in ms
-  expectedSize?: number; //in nb of frames
+  expectedSize: number; //in nb of frames
 };
 type FilesToResamples = {
   [key: `https://${string}`]: infoForResample;
@@ -36,6 +36,7 @@ const files_to_resamples: FilesToResamples = {
       comments:
         "This file could have error in frames conversion because of its structur",
       expectMaxTimeToConvert: 60,
+      expectedSize: 5890808,
     },
   "https://upload.wikimedia.org/wikipedia/commons/d/de/Fr-à_bientôt_%21.ogg": {
     id: 2,
@@ -46,6 +47,7 @@ const files_to_resamples: FilesToResamples = {
     comments:
       "It's a short mono (<1s) so make sure the output don't hav acceleration of the voice",
     expectMaxTimeToConvert: 20,
+    expectedSize: 166400,
   },
   "https://upload.wikimedia.org/wikipedia/commons/f/f7/%22Le_village_de_Mollon_dans_l%27Ain%22_prononcé_par_un_habitant_%28dans_la_rue%29.ogg":
     {
@@ -55,6 +57,7 @@ const files_to_resamples: FilesToResamples = {
       sampleRateOutput: 24000,
       channels: "mono",
       expectMaxTimeToConvert: 300,
+      expectedSize: 240604,
       comments:
         "It's a short mono (~1s) so make sure the output don't hav acceleration of the voice",
     },
@@ -66,6 +69,7 @@ const files_to_resamples: FilesToResamples = {
       sampleRateOutput: 16000,
       channels: "stereo",
       expectMaxTimeToConvert: 500,
+      expectedSize: 1660872,
     },
   "https://upload.wikimedia.org/wikipedia/commons/f/fc/04_Faisle_Di_Ghadi_-_Paramjit_Maan.ogg":
     {
@@ -75,7 +79,8 @@ const files_to_resamples: FilesToResamples = {
       sampleRateOutput: 16000,
       channels: "stereo",
       comments: "Its a big file of 50mb ogg for 35mn audio",
-      expectMaxTimeToConvert: 4000,
+      expectMaxTimeToConvert: 50000,
+      expectedSize: 270653648,
     },
   "https://upload.wikimedia.org/wikipedia/commons/f/f4/18-dic.-23.12.wav": {
     id: 6,
@@ -85,14 +90,10 @@ const files_to_resamples: FilesToResamples = {
     channels: "stereo",
     comments: "This wav use little endian",
     expectMaxTimeToConvert: 500,
+    expectedSize: 7034192,
   },
   // TODO: In the future should work with BE as like LE , so add a test
 };
-
-const BASE_AUDIO_NAME = "sample-talk.ogg";
-const BASE_AUDIO_FILE = OUT_DIR_FILE(BASE_AUDIO_NAME);
-const BASE_RAW_I16 = OUT_DIR_FILE("sample-talk-int16.raw");
-const BASE_RAW_F32 = OUT_DIR_FILE("sample-talk-f32.raw");
 
 beforeAll(async () => {
   try {
@@ -122,7 +123,7 @@ beforeAll(async () => {
   } catch (error) {
     console.error(`error : ${error}`);
   }
-}, 60000); // long timeout because could need to download a 50mb file
+}, 120000); // long timeout because could need to download a 50mb file
 
 afterAll(async () => {
   await cleanOutputFolder("end");
@@ -141,6 +142,7 @@ describe("NAPI -  Rubato Module", () => {
       sampleRateOutput,
       expectMaxTimeToConvert,
       expectedSize,
+      id,
     } = data;
     test(`${format.toUpperCase()} ${channelsStr} ${sampleRateInput} -> ${sampleRateOutput}`, async () => {
       let channels = channelsStr === "mono" ? 1 : 2;
@@ -165,6 +167,7 @@ describe("NAPI -  Rubato Module", () => {
       });
       let endF32 = Date.now();
       expect(endF32 - startF32).toBeLessThan(expectMaxTimeToConvert);
+      console.log(`SIZE for ${id} - f32:`, convertedBuffF32.length);
       let startI16 = Date.now();
       const convertedBuffI16 = reSampleInt16Buffer({
         inputInt16Buffer: bufferI16,
@@ -174,8 +177,16 @@ describe("NAPI -  Rubato Module", () => {
           sampleRateOutput,
         },
       });
+      console.log(`SIZE for ${id} - i16:`, convertedBuffI16.length);
       let endI16 = Date.now();
       expect(endI16 - startI16).toBeLessThan(expectMaxTimeToConvert);
+      // Some frames can be lost but should be in range with ~10% max
+      expect(convertedBuffI16.length).toBeLessThan(
+        expectedSize / 2 + expectedSize * 0.1
+      );
+      expect(convertedBuffI16.length).toBeGreaterThan(
+        expectedSize / 2 - expectedSize * 0.1
+      );
 
       if (!process.env.GITHUB_ACTIONS) {
         const outputRawConvertedI16 = OUT_DIR_FILE(
@@ -209,7 +220,7 @@ describe("NAPI -  Rubato Module", () => {
           channels
         );
       }
-    });
+    }, 50000); // depending on os the ttest on the big file could be slow
   });
 });
 
@@ -255,7 +266,6 @@ async function runSoxCommandOnBase(
 
   if (stderr) {
     console.log(`SOX error  : ${stderr}`);
-    return;
   }
 }
 
@@ -273,7 +283,6 @@ async function runSoxCommandOnConverted(
 
   if (stderr) {
     console.log(`SOX error  : ${stderr}`);
-    return;
   }
 }
 

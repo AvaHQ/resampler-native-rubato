@@ -7,7 +7,7 @@ mod helpers;
 
 use log::debug;
 use num_traits::FromPrimitive;
-use rubato::{implement_resampler, FastFixedIn, FastFixedOut, FftFixedInOut, PolynomialDegree};
+use rubato::{implement_resampler, FastFixedOut, PolynomialDegree};
 
 use std::fs::File;
 use std::io::{BufReader, Cursor};
@@ -53,11 +53,6 @@ pub struct ArgsAudioFile {
   pub input_raw_path: String,
   pub output_path: String,
   pub type_of_bin_data: DataType,
-}
-
-enum DataTypeRust {
-  I16(i16),
-  F32(f32),
 }
 
 #[napi]
