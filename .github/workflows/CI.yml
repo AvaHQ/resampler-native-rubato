@@ -246,9 +246,9 @@ jobs:
         shell: bash
       - name: Install Sox
         run: |
-          if [[ "${{ runner.os }}" == 'macOS' ]]; then
+          if [ "${{ runner.os }}" == 'macOS' ]; then
             brew install sox
-          elif [[ "${{ runner.os }}" == 'Windows' ]]; then
+          elif [ "${{ runner.os }}" == 'Windows' ]; then
             choco install sox.portable
           else
             echo "Unsupported OS for Sox installation"
