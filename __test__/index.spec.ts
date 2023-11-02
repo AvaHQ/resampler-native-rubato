@@ -169,7 +169,6 @@ describe("NAPI -  Rubato Module", () => {
       if (!process.env.GITHUB_ACTIONS) {
         expect(endF32 - startF32).toBeLessThan(expectMaxTimeToConvert); // time on CI depend on running usage .. not doing this
       }
-      console.log(`SIZE for ${id} - f32:`, convertedBuffF32.length);
       let startI16 = Date.now();
       const convertedBuffI16 = reSampleInt16Buffer({
         inputInt16Buffer: bufferI16,
@@ -179,9 +178,10 @@ describe("NAPI -  Rubato Module", () => {
           sampleRateOutput,
         },
       });
-      console.log(`SIZE for ${id} - i16:`, convertedBuffI16.length);
       let endI16 = Date.now();
-      expect(endI16 - startI16).toBeLessThan(expectMaxTimeToConvert);
+      if (!process.env.GITHUB_ACTIONS) {
+        expect(endI16 - startI16).toBeLessThan(expectMaxTimeToConvert);
+      }
       // Some frames can be lost but should be in range with ~10% max
       expect(convertedBuffI16.length).toBeLessThan(
         expectedSize / 2 + expectedSize * 0.1
