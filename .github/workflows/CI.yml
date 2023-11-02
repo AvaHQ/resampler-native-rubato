@@ -211,7 +211,6 @@ jobs:
       - build
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         settings:
           - host: macos-latest
@@ -261,7 +260,6 @@ jobs:
       - build
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         node:
           - "14"
@@ -298,7 +296,6 @@ jobs:
       - build
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         node:
           - "14"
@@ -337,7 +334,6 @@ jobs:
       - build
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         node:
           - "14"
@@ -399,7 +395,6 @@ jobs:
     needs:
       - build
     strategy:
-      max-parallel: 1
       fail-fast: false
       matrix:
         node:
