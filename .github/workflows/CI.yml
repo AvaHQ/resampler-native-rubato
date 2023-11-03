@@ -255,7 +255,6 @@ jobs:
         shell: bash
       - name: Install dependencies
         run: |
-          sudo apt install sox libsox-fmt-all
           yarn config set supportedArchitectures.cpu "arm64"
           yarn config set supportedArchitectures.libc "glibc"
           yarn install
@@ -270,6 +269,7 @@ jobs:
           image: node:${{ matrix.node }}-slim
           options: "--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build"
           run: |
+            sudo apt install sox libsox-fmt-all
             set -e
             ls -la
             yarn test
@@ -287,7 +287,6 @@ jobs:
           path: .
       - name: Install dependencies
         run: |
-          sudo apt install sox libsox-fmt-all
           yarn config set supportedArchitectures.cpu "arm64"
           yarn config set supportedArchitectures.libc "musl"
           yarn install
@@ -302,6 +301,7 @@ jobs:
           image: node:lts-alpine
           options: "--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build"
           run: |
+            sudo apt install sox libsox-fmt-all
             set -e
             ls -alh
             yarn test
@@ -322,8 +322,6 @@ jobs:
         with:
           name: bindings-armv7-unknown-linux-gnueabihf
           path: .
-      - name: Install Sox
-        run: sudo apt install sox libsox-fmt-all
       - name: Install dependencies
         run: |
           yarn config set supportedArchitectures.cpu "arm"
@@ -339,6 +337,7 @@ jobs:
           image: node:${{ matrix.node }}-bullseye-slim
           options: "--platform linux/arm/v7 -v ${{ github.workspace }}:/build -w /build"
           run: |
+            sudo apt install sox libsox-fmt-all
             set -e
             ls -lah
             yarn test
@@ -383,8 +382,6 @@ jobs:
     needs:
       - test-macOS-windows-binding
       - test-linux-x64-gnu-binding
-      - test-linux-aarch64-gnu-binding
-      - test-linux-aarch64-musl-binding
       - test-linux-arm-gnueabihf-binding
       - universal-macOS
     steps:

@@ -14,23 +14,23 @@ We create a bindign via napi.rs and published it.
 
 `Cargo test && Yarn test`
 
-### From buffer
+### From buffer (expect f32 data)
 
 ```javascript
-import { reSampleBuffers } from "@avahq/resampler-native-rubato";
+import { reSampleBuffer } from "@avahq/resampler-native-rubato";
 
 // Check eg inside __test__ folder
 ```
 
-### From int16Array (slowest function)
+### From int16 buffer
 
 ```javascript
-import { reSampleInt16Array } from "@avahq/resampler-native-rubato";
+import { reSampleInt16Buffer } from "@avahq/resampler-native-rubato";
 
 // Check eg inside __test__ folder
 ```
 
-### From file
+### From file (just present for try purpose)
 
 ```javascript
 import { reSampleAudioFile } from "@avahq/resampler-native-rubato";
