@@ -1,6 +1,6 @@
 {
   "name": "@avahq/resampler-native-rubato-darwin-universal",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "os": [
     "darwin"
   ],
