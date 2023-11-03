@@ -1,5 +1,5 @@
 {
-  "include": ["__test__/*.spec.ts", "jest.config.ts"],
+  "include": ["__test__/*.spec.ts", "jest.config.ts", "examples/*.ts"],
   "compilerOptions": {
     /* Visit https://aka.ms/tsconfig to read more about this file */
 
