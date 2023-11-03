@@ -269,7 +269,7 @@ jobs:
           image: node:${{ matrix.node }}-slim
           options: "--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build"
           run: |
-            sudo apt install sox libsox-fmt-all
+            apt -y install sox libsox-fmt-all
             set -e
             ls -la
             yarn test
@@ -301,7 +301,7 @@ jobs:
           image: node:lts-alpine
           options: "--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build"
           run: |
-            sudo apt install sox libsox-fmt-all
+            apt -y install sox libsox-fmt-all
             set -e
             ls -alh
             yarn test
@@ -337,7 +337,7 @@ jobs:
           image: node:${{ matrix.node }}-bullseye-slim
           options: "--platform linux/arm/v7 -v ${{ github.workspace }}:/build -w /build"
           run: |
-            sudo apt install sox libsox-fmt-all
+            apt -y install sox libsox-fmt-all
             set -e
             ls -lah
             yarn test
