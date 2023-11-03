@@ -9,6 +9,8 @@ const { join } = require('path')
 
 const { platform, arch } = process
 
+console.log({platform, arch});
+
 let nativeBinding = null
 let localFileExisted = false
 let loadError = null
@@ -187,7 +189,7 @@ switch (platform) {
             if (localFileExisted) {
               nativeBinding = require('./resampler-native-rubato.linux-x64-gnu.node')
             } else {
-              nativeBinding = require('@avahq/resampler-native-rubato-linux-x64-gnu')
+              nativeBinding = require('@avahq/resampler-native-rubato-linux-x64-gnu') // issue
             }
           } catch (e) {
             loadError = e

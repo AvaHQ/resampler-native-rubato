@@ -160,7 +160,7 @@ jobs:
           if-no-files-found: error
   build-freebsd:
     runs-on: macos-12
-    timeout-minutes: 9
+    timeout-minutes: 20
     name: Build FreeBSD
     steps:
       - uses: actions/checkout@v4
@@ -219,8 +219,6 @@ jobs:
             target: x86_64-pc-windows-msvc
         node:
           - "14"
-          - "16"
-          - "18"
           - "20"
     runs-on: ${{ matrix.settings.host }}
     timeout-minutes: 8
@@ -263,9 +261,6 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - "14"
-          - "16"
-          - "18"
           - "20"
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -299,9 +294,6 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - "14"
-          - "16"
-          - "18"
           - "20"
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -337,9 +329,6 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - "14"
-          - "16"
-          - "18"
           - "20"
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -408,9 +397,6 @@ jobs:
       fail-fast: false
       matrix:
         node:
-          - "14"
-          - "16"
-          - "18"
           - "20"
     runs-on: ubuntu-latest
     timeout-minutes: 8
@@ -434,7 +420,7 @@ jobs:
           platforms: arm
       - name: Install sox
         run: sudo apt install sox libsox-fmt-all
-      - run: ls -alh . &&yarn test
+      - run: ls -alh . && yarn test
   universal-macOS:
     name: Build universal macOS binary
     needs:
