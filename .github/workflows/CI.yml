@@ -190,9 +190,6 @@ jobs:
         with:
           name: bindings-${{ matrix.settings.target }}
           path: .
-        # - name: List packages
-        #   run: ls -R .
-        # shell: bash
       - name: Install Sox
         run: |
           if [ "${{ runner.os }}" == 'macOS' ]; then
@@ -232,45 +229,7 @@ jobs:
         with:
           name: bindings-x86_64-unknown-linux-gnu
           path: .
-        # - name: List packages
-        #   run: ls -R .
-        # shell: bash
       - name: Install Sox
-        run: sudo apt install sox libsox-fmt-all
-      - name: Test bindings
-        run: yarn test
-  test-linux-x64-musl-binding:
-    name: Test bindings on x86_64-unknown-linux-musl - node@${{ matrix.node }}
-    needs:
-      - build
-    strategy:
-      fail-fast: false
-      matrix:
-        node:
-          - "20"
-    runs-on: ubuntu-latest
-    timeout-minutes: 8
-    steps:
-      - uses: actions/checkout@v3
-      - name: Setup node
-        uses: actions/setup-node@v3
-        with:
-          node-version: ${{ matrix.node }}
-          check-latest: true
-          cache: yarn
-      - name: Install dependencies
-        run: |
-          yarn config set supportedArchitectures.libc "musl"
-          yarn install
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: bindings-x86_64-unknown-linux-musl
-          path: .
-      # - name: List packages
-      #   run: ls -R .
-      #   shell: bash
-      - name: Install sox
         run: sudo apt install sox libsox-fmt-all
       - name: Test bindings
         run: yarn test
@@ -284,45 +243,48 @@ jobs:
         node:
           - "20"
     runs-on: ubuntu-latest
-    timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
           name: bindings-aarch64-unknown-linux-gnu
           path: .
-      # - name: List packages
-      #   run: ls -R .
-      #   shell: bash
+      - name: List packages
+        run: ls -alh .
+        shell: bash
       - name: Install dependencies
         run: |
+          sudo apt install sox libsox-fmt-all
           yarn config set supportedArchitectures.cpu "arm64"
           yarn config set supportedArchitectures.libc "glibc"
           yarn install
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: arm64
-      - name: Install Sox
-        run: sudo apt install sox libsox-fmt-all
-      - run: yarn test
+      - run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+      - name: Setup and run tests
+        uses: addnab/docker-run-action@v3
+        with:
+          image: node:${{ matrix.node }}-slim
+          options: "--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build"
+          run: |
+            set -e
+            ls -la
+            yarn test
   test-linux-aarch64-musl-binding:
-    name: Test bindings on aarch64-unknown-linux-musl - node@${{ matrix.node }}
+    name: Test bindings on aarch64-unknown-linux-musl - node@lts
     needs:
       - build
     runs-on: ubuntu-latest
-    timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
           name: bindings-aarch64-unknown-linux-musl
           path: .
-      # - name: List packages
-      #   run: ls -R .
-      #   shell: bash
       - name: Install dependencies
         run: |
           sudo apt install sox libsox-fmt-all
@@ -341,6 +303,7 @@ jobs:
           options: "--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build"
           run: |
             set -e
+            ls -alh
             yarn test
   test-linux-arm-gnueabihf-binding:
     name: Test bindings on armv7-unknown-linux-gnueabihf - node@${{ matrix.node }}
@@ -352,28 +315,33 @@ jobs:
         node:
           - "20"
     runs-on: ubuntu-latest
-    timeout-minutes: 8
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Download artifacts
         uses: actions/download-artifact@v3
         with:
           name: bindings-armv7-unknown-linux-gnueabihf
           path: .
-      # - name: List packages
-      #   run: ls -R .
-      #   shell: bash
+      - name: Install Sox
+        run: sudo apt install sox libsox-fmt-all
       - name: Install dependencies
         run: |
           yarn config set supportedArchitectures.cpu "arm"
           yarn install
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: arm
-      - name: Install sox
-        run: sudo apt install sox libsox-fmt-all
-      - run: ls -alh . && yarn test
+      - run: docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+      - name: Setup and run tests
+        uses: addnab/docker-run-action@v3
+        with:
+          image: node:${{ matrix.node }}-bullseye-slim
+          options: "--platform linux/arm/v7 -v ${{ github.workspace }}:/build -w /build"
+          run: |
+            set -e
+            ls -lah
+            yarn test
   universal-macOS:
     name: Build universal macOS binary
     needs:
@@ -413,19 +381,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     needs:
-      # - test-macOS-windows-binding
-      # - test-linux-x64-gnu-binding
-      # - test-linux-x64-musl-binding
-      # - test-linux-aarch64-gnu-binding
-      # - test-linux-aarch64-musl-binding
-      # - test-linux-arm-gnueabihf-binding
+      - test-macOS-windows-binding
+      - test-linux-x64-gnu-binding
+      - test-linux-aarch64-gnu-binding
+      - test-linux-aarch64-musl-binding
+      - test-linux-arm-gnueabihf-binding
       - universal-macOS
     steps:
       - uses: actions/checkout@v3
       - name: Setup node
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: 20
           check-latest: true
           cache: yarn
       - name: Install dependencies
@@ -436,9 +403,6 @@ jobs:
           path: artifacts
       - name: Move artifacts
         run: yarn artifacts
-      # - name: List packages
-      #   run: ls -R ./npm
-      #   shell: bash
       - name: Publish
         run: |
           npm config set provenance true
