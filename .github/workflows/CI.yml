@@ -269,6 +269,7 @@ jobs:
           image: node:${{ matrix.node }}-slim
           options: "--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build"
           run: |
+            apt update
             apt -y install sox libsox-fmt-all
             set -e
             ls -la
@@ -301,6 +302,7 @@ jobs:
           image: node:lts-alpine
           options: "--platform linux/arm64 -v ${{ github.workspace }}:/build -w /build"
           run: |
+            apt update
             apt -y install sox libsox-fmt-all
             set -e
             ls -alh
@@ -337,6 +339,7 @@ jobs:
           image: node:${{ matrix.node }}-bullseye-slim
           options: "--platform linux/arm/v7 -v ${{ github.workspace }}:/build -w /build"
           run: |
+            apt update
             apt -y install sox libsox-fmt-all
             set -e
             ls -lah
