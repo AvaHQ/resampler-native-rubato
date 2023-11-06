@@ -123,7 +123,7 @@ beforeAll(async () => {
   } catch (error) {
     console.log(`error : ${error}`);
   }
-}, 120000); // long timeout because could need to download a 50mb file
+}, 300000); // long timeout because could need to download a 50mb file
 
 afterAll(async () => {
   await cleanOutputFolder("end");
@@ -222,7 +222,7 @@ describe("NAPI -  Rubato Module", () => {
           channels
         );
       }
-    }, 50000); // depending on os the ttest on the big file could be slow
+    }, 60000); // depending on os the ttest on the big file could be slow
   });
 });
 
