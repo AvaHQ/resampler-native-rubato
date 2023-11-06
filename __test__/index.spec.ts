@@ -121,7 +121,7 @@ beforeAll(async () => {
 
     console.log("Finished converted all samples to raw");
   } catch (error) {
-    console.error(`error : ${error}`);
+    console.log(`error : ${error}`);
   }
 }, 120000); // long timeout because could need to download a 50mb file
 
@@ -245,7 +245,7 @@ async function downloadFile(url: string, outputPath: string) {
       writer.on("error", reject);
     });
   } catch (error) {
-    console.error(error);
+    console.log(error);
   }
 }
 
