@@ -168,20 +168,20 @@ switch (platform) {
   case 'linux':
     switch (arch) {
       case 'x64':
-        if (isMusl()) {
-          localFileExisted = existsSync(
-            join(__dirname, 'resampler-native-rubato.linux-x64-musl.node')
-          )
-          try {
-            if (localFileExisted) {
-              nativeBinding = require('./resampler-native-rubato.linux-x64-musl.node')
-            } else {
-              nativeBinding = require('@avahq/resampler-native-rubato-linux-x64-musl')
-            }
-          } catch (e) {
-            loadError = e
-          }
-        } else {
+        // if (isMusl()) {
+        //   localFileExisted = existsSync(
+        //     join(__dirname, 'resampler-native-rubato.linux-x64-musl.node')
+        //   )
+        //   try {
+        //     if (localFileExisted) {
+        //       nativeBinding = require('./resampler-native-rubato.linux-x64-musl.node')
+        //     } else {
+        //       nativeBinding = require('@avahq/resampler-native-rubato-linux-x64-musl')
+        //     }
+        //   } catch (e) {
+        //     loadError = e
+        //   }
+        // } else {
           localFileExisted = existsSync(
             join(__dirname, 'resampler-native-rubato.linux-x64-gnu.node')
           )
@@ -194,23 +194,23 @@ switch (platform) {
           } catch (e) {
             loadError = e
           }
-        }
+        // }
         break
       case 'arm64':
-        if (isMusl()) {
-          localFileExisted = existsSync(
-            join(__dirname, 'resampler-native-rubato.linux-arm64-musl.node')
-          )
-          try {
-            if (localFileExisted) {
-              nativeBinding = require('./resampler-native-rubato.linux-arm64-musl.node')
-            } else {
-              nativeBinding = require('@avahq/resampler-native-rubato-linux-arm64-musl')
-            }
-          } catch (e) {
-            loadError = e
-          }
-        } else {
+        // if (isMusl()) {
+        //   localFileExisted = existsSync(
+        //     join(__dirname, 'resampler-native-rubato.linux-arm64-musl.node')
+        //   )
+        //   try {
+        //     if (localFileExisted) {
+        //       nativeBinding = require('./resampler-native-rubato.linux-arm64-musl.node')
+        //     } else {
+        //       nativeBinding = require('@avahq/resampler-native-rubato-linux-arm64-musl')
+        //     }
+        //   } catch (e) {
+        //     loadError = e
+        //   }
+        // } else {
           localFileExisted = existsSync(
             join(__dirname, 'resampler-native-rubato.linux-arm64-gnu.node')
           )
@@ -223,7 +223,7 @@ switch (platform) {
           } catch (e) {
             loadError = e
           }
-        }
+        // }
         break
       case 'arm':
         localFileExisted = existsSync(
