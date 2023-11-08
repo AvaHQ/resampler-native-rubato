@@ -1,6 +1,6 @@
 {
   "name": "@avahq/resampler-native-rubato-win32-arm64-msvc",
-  "version": "1.2.14",
+  "version": "1.2.15",
   "os": [
     "win32"
   ],
